@@ -1,5 +1,5 @@
-import { fetchImageAsJpeg } from "./get-image";
-import { images } from "./radar-image";
+import { fetchImageAsJpeg } from "./data/radar/get-image";
+import { images } from "./data/radar/radar-image";
 
 for (const image_obj of images) {
   console.log(image_obj.url);
