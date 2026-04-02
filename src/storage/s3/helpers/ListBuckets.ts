@@ -3,7 +3,7 @@ import { client } from "../client/s3";
 export async function ListBuckets() {
   try {
     const res = await client.send(new ListBucketsCommand({}));
-    console.log(res.Buckets);
+    return res;
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
