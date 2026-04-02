@@ -15,18 +15,18 @@ export async function ListObjectsFromBuckets(bucket: string) {
   }
 }
 
-export async function FindLatestObjectFromBucket(bucket: string) {
+export async function FindLatestObjectStatsFromBucket(bucket: string) {
   try {
     const { Contents = [] } = await client.send(
       new ListObjectsV2Command({ Bucket: bucket }),
     );
 
-    const latest = Contents.sort(
+    const sorted = Contents.sort(
       (a, b) =>
         new Date(b.LastModified!).getTime() -
         new Date(a.LastModified!).getTime(),
-    )[0];
-    console.log(latest);
+    );
+    return { last: sorted[0], first: sorted[-1] };
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
