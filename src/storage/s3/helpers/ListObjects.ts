@@ -37,5 +37,3 @@ export async function FindLatestObjectFromBucket(bucket: string) {
     }
   }
 }
-
-await FindLatestObjectFromBucket();
