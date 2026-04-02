@@ -1,4 +1,4 @@
-async function fetchImage(url: string): Promise<Buffer> {
+export async function fetchImage(url: string): Promise<Buffer> {
   const res = await fetch(url);
 
   if (!res.ok) {
