@@ -9,7 +9,7 @@ export async function ListObjectsFromBuckets() {
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
-        `Error from S3 while listing buckets.  ${e.name}: ${e.message}`,
+        `Error from S3 while listing objects.  ${e.name}: ${e.message}`,
       );
     } else {
       throw e;
@@ -32,7 +32,7 @@ export async function FindLatestObjectFromBucket() {
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
-        `Error from S3 while listing buckets.  ${e.name}: ${e.message}`,
+        `Error from S3 while listing Objects.  ${e.name}: ${e.message}`,
       );
     } else {
       throw e;
