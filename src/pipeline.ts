@@ -21,11 +21,16 @@ export async function runPipeline() {
   console.log("Images have changed proceeding with AI summarization");
   const saved_images = (
     await Promise.all(
-      images.map(async (image_obj) =>
-        (await ListObjectsFromBuckets(image_obj.bucket_name))
+      images.map(async (image_obj) => {
+        const keys = (await ListObjectsFromBuckets(image_obj.bucket_name))
           .map((item) => item.Key)
-          .filter((key): key is string => key !== undefined),
-      ),
+          .filter((key): key is string => key !== undefined);
+
+        return keys.map(
+          (key) =>
+            `${process.env.R2_PUBLIC_BASE_URL}${image_obj.bucket_name}/${key}`,
+        );
+      }),
     )
   ).flat();
   console.log(saved_images);
