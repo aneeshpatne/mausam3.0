@@ -11,7 +11,7 @@ export const send_mail = tool(
   {
     name: "send_mail",
     description:
-      "Prepare the concise user-facing weather mail. Call this exactly once after saving the internal summary.",
+      "Prepare one concise user-facing weather mail after saving the internal summary. Use current-time context and AM/PM phrasing.",
     schema: z.object({
       alert_color: alertColorSchema.describe(
         "Severity color based only on the images: green, yellow, orange, or red",
@@ -26,7 +26,7 @@ export const send_mail = tool(
         .string()
         .trim()
         .describe(
-          "Plain-language email body without radar jargon. State current situation, likely near-term trend, and confidence limits.",
+          "Plain-language email body without radar jargon. Anchor the update to current local time, use AM/PM wording, describe how risk may change through the day (morning/afternoon/evening), and include confidence limits.",
         ),
     }),
   },

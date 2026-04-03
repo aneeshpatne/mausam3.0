@@ -20,6 +20,19 @@ const imageLabelsByBucket: Record<string, string> = {
   satellite: "Infrared satellite",
 };
 
+function getMumbaiCurrentTimeText(): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date());
+}
+
 export async function runPipeline(): Promise<void> {
   for (const imageObj of images) {
     console.log(imageObj.url);
@@ -61,7 +74,7 @@ export async function runPipeline(): Promise<void> {
     throw new Error("Missing latest image for one or more weather sources");
   }
 
-  await weatherAgent(savedImages);
+  await weatherAgent(savedImages, getMumbaiCurrentTimeText());
 }
 
 await runPipeline();
