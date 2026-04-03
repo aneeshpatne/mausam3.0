@@ -1,3 +1,4 @@
+import { weather_agent } from "./ai/agents/weather-agent";
 import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
 import { ListObjectsFromBuckets } from "./storage/s3/helpers/ListObjects";
@@ -27,13 +28,16 @@ export async function runPipeline() {
           .filter((key): key is string => key !== undefined);
 
         return keys.map(
-          (key) =>
-            `${process.env.R2_PUBLIC_BASE_URL}${image_obj.bucket_name}/${key}`,
+          (key) => ({
+            type: "image" as const,
+            url: `${process.env.R2_PUBLIC_BASE_URL}${image_obj.bucket_name}/${key}`,
+          }),
         );
       }),
     )
   ).flat();
   console.log(saved_images);
+  await weather_agent(saved_images);
 }
 
 await runPipeline();
