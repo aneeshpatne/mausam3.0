@@ -7,8 +7,8 @@ export async function ListObjectsFromBuckets(bucket: string) {
     );
     const sorted = Contents.sort(
       (a, b) =>
-        new Date(b.LastModified!).getTime() -
-        new Date(a.LastModified!).getTime(),
+        new Date(a.LastModified!).getTime() -
+        new Date(b.LastModified!).getTime(),
     );
     return sorted;
   } catch (e) {
