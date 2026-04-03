@@ -69,10 +69,7 @@ export async function weatherAgent(
           `Current Mumbai local time: ${currentTimeText}`,
           "When describing timing, always use AM/PM.",
           "Use the labels below to map each image to its source.",
-          ...images.map(
-            (image, index) =>
-              `${index + 1}. ${image.label} (${image.bucketName}): ${image.url}`,
-          ),
+          ...images.map((image, index) => `${index + 1}. ${image.label}}`),
         ].join("\n"),
       },
       ...images,
