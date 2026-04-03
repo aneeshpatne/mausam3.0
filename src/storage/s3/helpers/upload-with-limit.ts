@@ -34,7 +34,7 @@ export async function uploadWithLimit(
       }),
     );
     const toBeDeleted = bucket
-      .slice(0, -2)
+      .slice(0, -1)
       .map((item) => item.Key)
       .filter((key): key is string => key !== undefined);
     for (const itemKey of toBeDeleted) {
