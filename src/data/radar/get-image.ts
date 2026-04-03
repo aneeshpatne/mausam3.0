@@ -7,7 +7,13 @@ export async function fetchImageAsJpeg(url: string): Promise<Buffer> {
     throw new Error("Image fetch failed");
   }
   const arrayBuffer = await res.arrayBuffer();
-  const jpegBuffer = await sharp(arrayBuffer).jpeg({ quality: 20 }).toBuffer();
+  const jpegBuffer = await sharp(arrayBuffer)
+    .resize(800, 800, {
+      fit: "cover",
+      position: "center",
+    })
+    .jpeg({ quality: 20 })
+    .toBuffer();
   return jpegBuffer;
 }
 
