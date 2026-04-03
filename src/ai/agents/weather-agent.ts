@@ -1,5 +1,6 @@
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { model } from "./model";
+import { alert_tool } from "../tools/alert-tool";
 
 export interface WeatherAgentImageInput {
   type: "image";
@@ -29,7 +30,7 @@ The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
 export async function weatherAgent(
   images: WeatherAgentImageInput[],
 ): Promise<void> {
-  const agent = createAgent({ model });
+  const agent = createAgent({ model, tools: [alert_tool] });
 
   const systemMsg = new SystemMessage(WEATHER_SYSTEM_PROMPT);
   const humanMsg = new HumanMessage({
