@@ -1,10 +1,11 @@
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { model } from "./model";
 
-export type WeatherAgentImageInput = {
+export interface WeatherAgentImageInput {
   type: "image";
   url: string;
-};
+  [key: string]: unknown;
+}
 
 const WEATHER_SYSTEM_PROMPT = `You analyze Mumbai MMR weather images.
 
@@ -25,7 +26,9 @@ Keep it concise and practical.
 If something cannot be inferred from the images, say so briefly.
 The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
 
-export async function weather_agent(images: WeatherAgentImageInput[]) {
+export async function weatherAgent(
+  images: WeatherAgentImageInput[],
+): Promise<void> {
   const agent = createAgent({ model });
 
   const systemMsg = new SystemMessage(WEATHER_SYSTEM_PROMPT);

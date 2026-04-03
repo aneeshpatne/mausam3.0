@@ -1,18 +1,23 @@
-import { weather_agent } from "./ai/agents/weather-agent";
+import type { WeatherAgentImageInput } from "./ai/agents/weather-agent";
+import { weatherAgent } from "./ai/agents/weather-agent";
 import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
-import { ListObjectsFromBuckets } from "./storage/s3/helpers/ListObjects";
-import { UploadWithLimit } from "./storage/s3/helpers/uploadWithLimit";
+import { listObjectsFromBuckets } from "./storage/s3/helpers/list-objects";
+import { uploadWithLimit } from "./storage/s3/helpers/upload-with-limit";
 
-export const state = {
+export interface PipelineState {
+  changed: boolean;
+}
+
+export const state: PipelineState = {
   changed: false,
 };
 
-export async function runPipeline() {
-  for (const image_obj of images) {
-    console.log(image_obj.url);
-    const imageBuffer = await fetchImageAsJpeg(image_obj.url);
-    await UploadWithLimit(image_obj.bucket_name, imageBuffer);
+export async function runPipeline(): Promise<void> {
+  for (const imageObj of images) {
+    console.log(imageObj.url);
+    const imageBuffer = await fetchImageAsJpeg(imageObj.url);
+    await uploadWithLimit(imageObj.bucketName, imageBuffer);
   }
 
   if (state.changed === false) {
@@ -20,24 +25,24 @@ export async function runPipeline() {
     return;
   }
   console.log("Images have changed proceeding with AI summarization");
-  const saved_images = (
+  const savedImages: WeatherAgentImageInput[] = (
     await Promise.all(
-      images.map(async (image_obj) => {
-        const keys = (await ListObjectsFromBuckets(image_obj.bucket_name))
+      images.map(async (imageObj) => {
+        const keys = (await listObjectsFromBuckets(imageObj.bucketName))
           .map((item) => item.Key)
           .filter((key): key is string => key !== undefined);
 
         return keys.map(
           (key) => ({
             type: "image" as const,
-            url: `${process.env.R2_PUBLIC_BASE_URL}${image_obj.bucket_name}/${key}`,
+            url: `${process.env.R2_PUBLIC_BASE_URL}${imageObj.bucketName}/${key}`,
           }),
         );
       }),
     )
   ).flat();
-  console.log(saved_images);
-  await weather_agent(saved_images);
+  console.log(savedImages);
+  await weatherAgent(savedImages);
 }
 
 await runPipeline();
