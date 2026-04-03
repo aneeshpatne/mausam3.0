@@ -4,6 +4,7 @@ import { fetchImage } from "../../../data/radar/get-image";
 import { client } from "../client/s3";
 import { ListObjectsFromBuckets } from "./ListObjects";
 import { DeleteObjectFromBucket } from "./DeleteItemsinBucket";
+import { state } from "../../../pipeline";
 
 // bucketName: string, imageBuffer: Buffer
 export async function UploadWithLimit(bucketName: string, imageBuffer: Buffer) {
@@ -20,6 +21,7 @@ export async function UploadWithLimit(bucketName: string, imageBuffer: Buffer) {
       console.log(`${bucketName} Image has not changed, skipping`);
       return;
     }
+    state.changed = true;
     console.log(`${bucketName} Image has changed, uploading.`);
     await client.send(
       new PutObjectCommand({
@@ -37,6 +39,7 @@ export async function UploadWithLimit(bucketName: string, imageBuffer: Buffer) {
       DeleteObjectFromBucket(key, bucketName);
     }
   } else {
+    state.changed = true;
     await client.send(
       new PutObjectCommand({
         Bucket: bucketName,
