@@ -9,6 +9,7 @@ export async function DeleteObjectFromBucket(
     const response = await client.send(
       new DeleteObjectCommand({ Bucket: bucket_name, Key: name }),
     );
+    console.log(`Successfully Deleted ${name} from Bucket ${bucket_name}`);
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
