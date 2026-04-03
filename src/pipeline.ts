@@ -19,13 +19,15 @@ export async function runPipeline() {
     return;
   }
   console.log("Images have changed proceeding with AI summarization");
-  const saved_images: string[] = [];
-  for (const image_obj of images) {
-    var img_url = (await ListObjectsFromBuckets(image_obj.bucket_name))
-      .map((item) => item.Key)
-      .filter((key): key is string => key !== undefined);
-    saved_images.push(...img_url);
-  }
+  const saved_images = (
+    await Promise.all(
+      images.map(async (image_obj) =>
+        (await ListObjectsFromBuckets(image_obj.bucket_name))
+          .map((item) => item.Key)
+          .filter((key): key is string => key !== undefined),
+      ),
+    )
+  ).flat();
   console.log(saved_images);
 }
 
