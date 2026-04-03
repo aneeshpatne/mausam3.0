@@ -1,6 +1,8 @@
 import { ListBucketsCommand, S3ServiceException } from "@aws-sdk/client-s3";
+import type { ListBucketsCommandOutput } from "@aws-sdk/client-s3";
 import { client } from "../client/s3";
-export async function ListBuckets() {
+
+export async function listBuckets(): Promise<ListBucketsCommandOutput | undefined> {
   try {
     const res = await client.send(new ListBucketsCommand({}));
     return res;
