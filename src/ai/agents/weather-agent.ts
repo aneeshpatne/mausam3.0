@@ -1,43 +1,69 @@
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { model } from "./model";
 import { alert_tool } from "../tools/alert-tool";
+import { save_summary_tool } from "../tools/save-summary-tool";
+import { send_mail } from "../tools/send-mail";
 
 export interface WeatherAgentImageInput {
   type: "image";
   url: string;
+  label: string;
+  bucketName: string;
   [key: string]: unknown;
 }
 
 const WEATHER_SYSTEM_PROMPT = `You analyze Mumbai MMR weather images.
 
-Use only the provided images.
-Do not assume sensor, station, rainfall, wind, or time values that are not present.
+You must base every conclusion only on the provided images and the text context in the user message.
+Do not assume rainfall totals, timing, wind, lightning, storm motion, station values, or neighborhood-level impacts unless they are visually supported.
+Do not generate a normal assistant response.
+Your job is to finish by calling tools only.
 
-Return two short sections:
-1. Mumbai (MMR)
-2. Borivali
+Required workflow:
+1. Inspect all images together.
+2. Call save_summary_tool exactly once with a markdown summary for internal use.
+3. Call send_mail exactly once with a short plain-language update for users.
+4. Call alert_tool exactly once with the final severity color and a banner message.
+5. After tool calls, do not add any extra text.
 
-For each section, include:
-- Current situation
-- Trend
-- Likely rain intensity
-- Confidence
+Severity guidance:
+- green: quiet or low-risk conditions
+- yellow: some showers or moderate caution
+- orange: strong convection or heavy-rain risk
+- red: very intense or widespread severe-rain signal
 
-Keep it concise and practical.
-If something cannot be inferred from the images, say so briefly.
+The summary must include:
+- Overview
+- Mumbai (MMR)
+- Borivali
+- Evidence from MAX-Z, PPI-Z, SRI, and Satellite
+- Confidence and key uncertainty
+
+The email must stay practical and non-technical.
+The alert message must be 7 words or fewer.
 The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
 
 export async function weatherAgent(
   images: WeatherAgentImageInput[],
 ): Promise<void> {
-  const agent = createAgent({ model, tools: [alert_tool] });
+  const agent = createAgent({
+    model,
+    tools: [save_summary_tool, send_mail, alert_tool],
+  });
 
   const systemMsg = new SystemMessage(WEATHER_SYSTEM_PROMPT);
   const humanMsg = new HumanMessage({
     contentBlocks: [
       {
         type: "text",
-        text: "Analyze these images.",
+        text: [
+          "Analyze the latest Mumbai weather images.",
+          "Use the labels below to map each image to its source.",
+          ...images.map(
+            (image, index) =>
+              `${index + 1}. ${image.label} (${image.bucketName}): ${image.url}`,
+          ),
+        ].join("\n"),
       },
       ...images,
     ],
