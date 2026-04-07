@@ -3,7 +3,7 @@ import { areBuffersSame } from "../../../data/radar/are-same";
 import { fetchImage } from "../../../data/radar/get-image";
 import { client } from "../client/s3";
 import { listObjectsFromBuckets } from "./list-objects";
-import { deleteObjectFromBucket } from "./delete-items-in-bucket";
+import { deleteObjectsFromBucket } from "./delete-items-in-bucket";
 import { state } from "../../../pipeline";
 
 export async function uploadWithLimit(
@@ -37,9 +37,7 @@ export async function uploadWithLimit(
       .slice(0, -1)
       .map((item) => item.Key)
       .filter((key): key is string => key !== undefined);
-    for (const itemKey of toBeDeleted) {
-      deleteObjectFromBucket(itemKey, bucketName);
-    }
+    await deleteObjectsFromBucket(toBeDeleted, bucketName);
   } else {
     state.changed = true;
     await client.send(
