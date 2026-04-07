@@ -9,10 +9,22 @@ export interface ObjectStats {
 
 export async function listObjectsFromBuckets(bucket: string): Promise<_Object[]> {
   try {
-    const { Contents = [] } = await client.send(
-      new ListObjectsV2Command({ Bucket: bucket }),
-    );
-    const sorted = Contents.sort((a, b) => {
+    const contents: _Object[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const { Contents = [], IsTruncated, NextContinuationToken } =
+        await client.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            ContinuationToken: continuationToken,
+          }),
+        );
+      contents.push(...Contents);
+      continuationToken = IsTruncated ? NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    const sorted = contents.sort((a, b) => {
       const dateA = a.LastModified ? new Date(a.LastModified).getTime() : 0;
       const dateB = b.LastModified ? new Date(b.LastModified).getTime() : 0;
       return dateA - dateB;
@@ -34,11 +46,8 @@ export async function findLatestObjectStatsFromBucket(
   bucket: string,
 ): Promise<ObjectStats | undefined> {
   try {
-    const { Contents = [] } = await client.send(
-      new ListObjectsV2Command({ Bucket: bucket }),
-    );
-
-    const sorted = Contents.sort((a, b) => {
+    const contents = await listObjectsFromBuckets(bucket);
+    const sorted = contents.sort((a, b) => {
       const dateA = a.LastModified ? new Date(a.LastModified).getTime() : 0;
       const dateB = b.LastModified ? new Date(b.LastModified).getTime() : 0;
       return dateB - dateA;

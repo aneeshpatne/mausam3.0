@@ -1,4 +1,8 @@
-import { DeleteObjectCommand, S3ServiceException } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  S3ServiceException,
+} from "@aws-sdk/client-s3";
 import { client } from "../client/s3";
 
 export async function deleteObjectFromBucket(
@@ -14,6 +18,43 @@ export async function deleteObjectFromBucket(
     if (e instanceof S3ServiceException) {
       console.error(
         `Error from S3 while listing buckets.  ${e.name}: ${e.message}`,
+      );
+    } else {
+      throw e;
+    }
+  }
+}
+
+export async function deleteObjectsFromBucket(
+  names: string[],
+  bucketName: string,
+): Promise<void> {
+  if (names.length === 0) {
+    return;
+  }
+
+  const batchSize = 1000;
+
+  try {
+    for (let index = 0; index < names.length; index += batchSize) {
+      const batch = names.slice(index, index + batchSize);
+      await client.send(
+        new DeleteObjectsCommand({
+          Bucket: bucketName,
+          Delete: {
+            Objects: batch.map((name) => ({ Key: name })),
+            Quiet: false,
+          },
+        }),
+      );
+      console.log(
+        `Successfully Deleted ${batch.length} objects from Bucket ${bucketName}`,
+      );
+    }
+  } catch (e) {
+    if (e instanceof S3ServiceException) {
+      console.error(
+        `Error from S3 while deleting objects.  ${e.name}: ${e.message}`,
       );
     } else {
       throw e;
