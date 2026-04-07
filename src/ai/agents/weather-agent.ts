@@ -1,8 +1,8 @@
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { model } from "./model";
-import { alert_tool } from "../tools/alert-tool";
-import { send_mail } from "../tools/send-mail";
-import { send_message } from "../tools/send-message";
+import { createAlertTool } from "../tools/alert-tool";
+import { createSendMailTool } from "../tools/send-mail";
+import { createSendMessageTool } from "../tools/send-message";
 
 export interface WeatherAgentImageInput {
   type: "image";
@@ -25,7 +25,7 @@ Your job is to call tools only.
 Required workflow:
 1. Inspect all images together.
 2. Call send_mail exactly once with a concise user-facing weather email that uses the current time only as hidden context to describe what may happen next using explicit future time wording whenever the images support it.
-3. Call send_message exactly once with a concise Telegram update.
+3. Call send_message exactly once with a concise Telegram update that includes weather emojis and uses the same severity color.
 4. Call alert_tool exactly once with the final severity color and a banner message.
 5. After tool calls, do not add any extra text under any circumstance.
 
@@ -47,6 +47,7 @@ Include a short explanation of why you expect that outcome, without sounding rep
 The Telegram message may be more technical than the email if useful, but it must still stay concise and future-facing.
 Use the current local time only as hidden context there as well.
 Be explicit there too about future timing whenever the imagery supports it.
+Use 3-6 short lines in Telegram and include weather-appropriate emojis.
 
 The alert message must be 7 words or fewer.
 The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
@@ -58,7 +59,7 @@ export async function weatherAgent(
 ): Promise<void> {
   const agent = createAgent({
     model,
-    tools: [send_mail, send_message, alert_tool],
+    tools: [createSendMailTool(), createSendMessageTool(), createAlertTool()],
   });
 
   const systemMsg = new SystemMessage(

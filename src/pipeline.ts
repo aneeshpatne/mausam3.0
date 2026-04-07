@@ -34,6 +34,8 @@ function getMumbaiCurrentTimeText(): string {
 }
 
 export async function runPipeline(): Promise<void> {
+  state.changed = false;
+
   for (const imageObj of images) {
     console.log(imageObj.url);
     const imageBuffer = await fetchImageAsJpeg(imageObj.url);
