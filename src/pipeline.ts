@@ -1,9 +1,13 @@
-import type { WeatherAgentImageInput } from "./ai/agents/weather-agent";
+import type {
+  WeatherAgentImageInput,
+  WeatherAgentMode,
+} from "./ai/agents/weather-agent";
 import { weatherAgent } from "./ai/agents/weather-agent";
 import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
 import { findLatestObjectStatsFromBucket } from "./storage/s3/helpers/list-objects";
 import { uploadWithLimit } from "./storage/s3/helpers/upload-with-limit";
+import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
 
 export interface PipelineState {
   changed: boolean;
@@ -33,8 +37,40 @@ function getMumbaiCurrentTimeText(): string {
   }).format(new Date());
 }
 
+function getMumbaiNowParts(date: Date = new Date()): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+  const minute = Number(
+    parts.find((part) => part.type === "minute")?.value ?? "0",
+  );
+
+  return { hour, minute };
+}
+
+function getPipelineMode(date: Date = new Date()): WeatherAgentMode {
+  const { hour, minute } = getMumbaiNowParts(date);
+
+  if (hour === 7 && minute <= 30) {
+    return "morning";
+  }
+
+  return "default";
+}
+
 export async function runPipeline(): Promise<void> {
   state.changed = false;
+  const pipelineMode = getPipelineMode();
+
+  if (pipelineMode === "morning") {
+    console.log("Morning mode active for IST 7:00 AM to 7:30 AM. Wiping buckets.");
+    await wipeAllBuckets();
+  }
 
   for (const imageObj of images) {
     console.log(imageObj.url);
@@ -76,7 +112,7 @@ export async function runPipeline(): Promise<void> {
     throw new Error("Missing latest image for one or more weather sources");
   }
 
-  await weatherAgent(savedImages, getMumbaiCurrentTimeText());
+  await weatherAgent(savedImages, getMumbaiCurrentTimeText(), pipelineMode);
 }
 
 await runPipeline();

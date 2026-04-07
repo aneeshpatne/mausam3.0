@@ -2,7 +2,7 @@ import { images } from "../../../data/radar/radar-image";
 import { deleteObjectsFromBucket } from "../helpers/delete-items-in-bucket";
 import { listObjectsFromBuckets } from "../helpers/list-objects";
 
-export async function WipeAllBuckets() {
+export async function wipeAllBuckets(): Promise<void> {
   await Promise.all(
     images.map(async (image) => {
       try {
@@ -17,4 +17,6 @@ export async function WipeAllBuckets() {
   );
 }
 
-await WipeAllBuckets();
+if (import.meta.main) {
+  await wipeAllBuckets();
+}

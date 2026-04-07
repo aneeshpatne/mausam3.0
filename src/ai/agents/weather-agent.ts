@@ -12,10 +12,25 @@ export interface WeatherAgentImageInput {
   [key: string]: unknown;
 }
 
-function buildWeatherSystemPrompt(currentTimeText: string): string {
+export type WeatherAgentMode = "default" | "morning";
+
+function buildWeatherSystemPrompt(
+  currentTimeText: string,
+  mode: WeatherAgentMode,
+): string {
+  const modeInstructions =
+    mode === "morning"
+      ? [
+          "Morning mode is active.",
+          "Focus on a morning commute and the next few hours after 7:00 AM IST.",
+          "Prioritize concise guidance for early-day rainfall risk, clearing trends, and whether conditions may worsen toward late morning.",
+        ].join("\n")
+      : "Default mode is active.";
+
   return `You analyze Mumbai MMR weather images.
 
 Current local Mumbai time: ${currentTimeText}
+${modeInstructions}
 
 You must base every conclusion only on the provided images and the text context in the user message.
 Do not assume rainfall totals, timing, wind, lightning, storm motion, station values, or neighborhood-level impacts unless they are visually supported.
@@ -56,6 +71,7 @@ The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
 export async function weatherAgent(
   images: WeatherAgentImageInput[],
   currentTimeText: string,
+  mode: WeatherAgentMode = "default",
 ): Promise<void> {
   const agent = createAgent({
     model,
@@ -63,7 +79,7 @@ export async function weatherAgent(
   });
 
   const systemMsg = new SystemMessage(
-    buildWeatherSystemPrompt(currentTimeText),
+    buildWeatherSystemPrompt(currentTimeText, mode),
   );
   const humanMsg = new HumanMessage({
     contentBlocks: [
@@ -72,6 +88,7 @@ export async function weatherAgent(
         text: [
           "Analyze the latest Mumbai weather images.",
           `Current Mumbai local time: ${currentTimeText}`,
+          `Pipeline mode: ${mode}`,
           "Use explicit future timing whenever the imagery supports it. Prefer a specific time or narrow future window over vague phrases.",
           "Use the current time only to infer future forecast windows. Do not repeat the current time in the email or Telegram message unless truly necessary.",
           "The email can be mildly technical if useful and may use HTML-supported tags when they improve clarity.",
