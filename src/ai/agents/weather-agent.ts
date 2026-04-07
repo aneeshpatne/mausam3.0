@@ -95,7 +95,7 @@ export async function weatherAgent(
           "Telegram can be more technical if useful, but it should still be concise.",
           "Call tools only. Do not return any normal text.",
           "Use the labels below to map each image to its source.",
-          ...images.map((image, index) => `${index + 1}. ${image.label}}`),
+          ...images.map((image, index) => `${index + 1}. ${image.label}`),
         ].join("\n"),
       },
       ...images,
