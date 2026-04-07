@@ -37,7 +37,10 @@ function getMumbaiCurrentTimeText(): string {
   }).format(new Date());
 }
 
-function getMumbaiNowParts(date: Date = new Date()): { hour: number; minute: number } {
+function getMumbaiNowParts(date: Date = new Date()): {
+  hour: number;
+  minute: number;
+} {
   const parts = new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
     hour: "2-digit",
@@ -68,7 +71,9 @@ export async function runPipeline(): Promise<void> {
   const pipelineMode = getPipelineMode();
 
   if (pipelineMode === "morning") {
-    console.log("Morning mode active for IST 7:00 AM to 7:30 AM. Wiping buckets.");
+    console.log(
+      "Morning mode active for IST 7:00 AM to 7:30 AM. Wiping buckets.",
+    );
     await wipeAllBuckets();
   }
 
@@ -114,5 +119,3 @@ export async function runPipeline(): Promise<void> {
 
   await weatherAgent(savedImages, getMumbaiCurrentTimeText(), pipelineMode);
 }
-
-await runPipeline();
