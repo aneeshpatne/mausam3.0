@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package sandesh;
+
+service MailerService {
+  rpc SendEmail (SendEmailRequest) returns (SendEmailResponse);
+  rpc SendTelegram (SendTelegramRequest) returns (SendTelegramResponse);
+}
+
+message SendEmailRequest {
+  string app_id = 1;
+  repeated string to = 2;
+  string subject = 3;
+  string body = 4;
+}
+
+message SendEmailResponse {
+  bool success = 1;
+}
+
+message SendTelegramRequest {
+  string html = 1;
+}
+
+message SendTelegramResponse {
+  bool success = 1;
+}

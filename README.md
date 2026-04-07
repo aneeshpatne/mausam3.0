@@ -61,6 +61,7 @@ sequenceDiagram
 - Model init: `initChatModel` via LangChain
 - Object storage: AWS SDK v3 (`@aws-sdk/client-s3`)
 - Image processing: Sharp
+- gRPC client: `@grpc/grpc-js` + `@grpc/proto-loader`
 
 ## Project Structure
 
@@ -127,6 +128,34 @@ bun src/pipeline.ts
 ```
 
 The `index.ts` file is currently a simple Bun sanity entrypoint.
+
+## gRPC Mailer Client
+
+This project includes a ready-to-import gRPC client wrapper for `MailerService`.
+
+- Proto file: `src/grpc/proto/sandesh.proto`
+- Client wrapper: `src/grpc/client/mailer-client.ts`
+- Barrel exports: `src/grpc/client/index.ts`
+
+By default, the client connects to `localhost:50052`.
+You can override this with `MAILER_GRPC_ADDRESS`.
+
+Example:
+
+```ts
+import { sendEmailRpc, sendTelegramRpc } from "./src/grpc/client";
+
+await sendEmailRpc({
+  app_id: "mausam3.0",
+  to: ["ops@example.com"],
+  subject: "Weather update",
+  body: "Rain risk increasing through evening.",
+});
+
+await sendTelegramRpc({
+  html: "<b>ORANGE</b>: Keep umbrella ready",
+});
+```
 
 ## Data and Retention Behavior
 
