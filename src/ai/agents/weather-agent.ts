@@ -1,8 +1,8 @@
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { model } from "./model";
 import { alert_tool } from "../tools/alert-tool";
-import { save_summary_tool } from "../tools/save-summary-tool";
 import { send_mail } from "../tools/send-mail";
+import { send_message } from "../tools/send-message";
 
 export interface WeatherAgentImageInput {
   type: "image";
@@ -24,10 +24,10 @@ Your job is to call tools only.
 
 Required workflow:
 1. Inspect all images together.
-2. Call save_summary_tool exactly once with a markdown summary for internal use.
-3. Call send_mail exactly once with a short plain-language update for users that uses the current time only as hidden context to describe what may happen next using AM/PM wording.
+2. Call send_mail exactly once with a concise user-facing weather email that uses the current time only as hidden context to describe what may happen next using explicit future time wording whenever the images support it.
+3. Call send_message exactly once with a concise Telegram update.
 4. Call alert_tool exactly once with the final severity color and a banner message.
-5. After tool calls, do not add any extra text.
+5. After tool calls, do not add any extra text under any circumstance.
 
 Severity guidance:
 - green: quiet or low-risk conditions
@@ -35,19 +35,19 @@ Severity guidance:
 - orange: strong convection or heavy-rain risk
 - red: very intense or widespread severe-rain signal
 
-The summary must include:
-- Overview
-- Mumbai (MMR)
-- Borivali
-- Evidence from MAX-Z, PPI-Z, SRI, and Satellite
-- Confidence and key uncertainty
-
-The email must stay practical, non-technical, and easy for a general reader.
+The email must stay practical, readable, and concise.
 Use the current local time only to decide whether the forecast should talk about the next few hours, afternoon, evening, or the rest of the day.
 Do not explicitly state the current local time in the email unless it is essential.
-Prefer future-facing phrases such as "by 1:00 PM there may be rain", "a few showers may reach later this afternoon", or "the rest of the day looks rain-free".
-Replace technical radar language with simple everyday wording.
-Include a short layman explanation of why you expect that outcome, without using jargon or sounding repetitive.
+Prefer future-facing phrases such as "by around 1:00 there may be rain", "a few showers may reach later this afternoon", or "the rest of the day looks rain-free".
+Be explicit about future timing whenever the imagery supports it. Prefer a specific future time or a narrow future window over vague phrases like "later" or "soon".
+The email may be mildly technical when that improves precision, but it should still remain clear for a normal reader.
+HTML-supported tags may be used in the email when they improve structure or emphasis.
+Include a short explanation of why you expect that outcome, without sounding repetitive.
+
+The Telegram message may be more technical than the email if useful, but it must still stay concise and future-facing.
+Use the current local time only as hidden context there as well.
+Be explicit there too about future timing whenever the imagery supports it.
+
 The alert message must be 7 words or fewer.
 The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
 }
@@ -58,7 +58,7 @@ export async function weatherAgent(
 ): Promise<void> {
   const agent = createAgent({
     model,
-    tools: [save_summary_tool, send_mail, alert_tool],
+    tools: [send_mail, send_message, alert_tool],
   });
 
   const systemMsg = new SystemMessage(
@@ -71,9 +71,11 @@ export async function weatherAgent(
         text: [
           "Analyze the latest Mumbai weather images.",
           `Current Mumbai local time: ${currentTimeText}`,
-          "When describing timing, always use AM/PM.",
-          "Use the current time only to infer future forecast windows. Do not repeat the current time in the email unless truly necessary.",
-          "Keep the email in easy words and include a short explanation of what the images suggest in layman terms.",
+          "Use explicit future timing whenever the imagery supports it. Prefer a specific time or narrow future window over vague phrases.",
+          "Use the current time only to infer future forecast windows. Do not repeat the current time in the email or Telegram message unless truly necessary.",
+          "The email can be mildly technical if useful and may use HTML-supported tags when they improve clarity.",
+          "Telegram can be more technical if useful, but it should still be concise.",
+          "Call tools only. Do not return any normal text.",
           "Use the labels below to map each image to its source.",
           ...images.map((image, index) => `${index + 1}. ${image.label}}`),
         ].join("\n"),
