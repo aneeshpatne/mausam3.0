@@ -25,7 +25,7 @@ Your job is to call tools only.
 Required workflow:
 1. Inspect all images together.
 2. Call save_summary_tool exactly once with a markdown summary for internal use.
-3. Call send_mail exactly once with a short plain-language update for users that references time progression using AM/PM wording.
+3. Call send_mail exactly once with a short plain-language update for users that uses the current time only as hidden context to describe what may happen next using AM/PM wording.
 4. Call alert_tool exactly once with the final severity color and a banner message.
 5. After tool calls, do not add any extra text.
 
@@ -42,8 +42,12 @@ The summary must include:
 - Evidence from MAX-Z, PPI-Z, SRI, and Satellite
 - Confidence and key uncertainty
 
-The email must stay practical and non-technical.
-In the email, explicitly anchor the update to the current local time and describe near-term risk in day progression terms (for example: this morning, by late afternoon, by evening) using AM/PM format.
+The email must stay practical, non-technical, and easy for a general reader.
+Use the current local time only to decide whether the forecast should talk about the next few hours, afternoon, evening, or the rest of the day.
+Do not explicitly state the current local time in the email unless it is essential.
+Prefer future-facing phrases such as "by 1:00 PM there may be rain", "a few showers may reach later this afternoon", or "the rest of the day looks rain-free".
+Replace technical radar language with simple everyday wording.
+Include a short layman explanation of why you expect that outcome, without using jargon or sounding repetitive.
 The alert message must be 7 words or fewer.
 The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
 }
@@ -68,6 +72,8 @@ export async function weatherAgent(
           "Analyze the latest Mumbai weather images.",
           `Current Mumbai local time: ${currentTimeText}`,
           "When describing timing, always use AM/PM.",
+          "Use the current time only to infer future forecast windows. Do not repeat the current time in the email unless truly necessary.",
+          "Keep the email in easy words and include a short explanation of what the images suggest in layman terms.",
           "Use the labels below to map each image to its source.",
           ...images.map((image, index) => `${index + 1}. ${image.label}}`),
         ].join("\n"),
