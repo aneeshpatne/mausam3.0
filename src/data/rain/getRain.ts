@@ -42,5 +42,3 @@ export async function getRain(stationId: number): Promise<RainTotals> {
     last24Hours: parseRainValue(last24Hours),
   };
 }
-
-console.log(await getRain(43));
