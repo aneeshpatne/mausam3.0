@@ -17,6 +17,7 @@ export async function weatherAgent(
   images: WeatherAgentImageInput[],
   currentTimeText: string,
   rainData: string,
+  localStation: string,
   mode: WeatherAgentMode = "default",
 ): Promise<void> {
   const agent = createAgent({
@@ -92,7 +93,8 @@ The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`);
     ],
   });
   const rainMsg = new HumanMessage(rainData);
-  const messages = [systemMsg, humanMsg, rainMsg];
+  const localStationMsg = new HumanMessage(localStation);
+  const messages = [systemMsg, humanMsg, rainMsg, localStationMsg];
 
   const response = await agent.invoke({ messages });
 
