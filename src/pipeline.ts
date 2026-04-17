@@ -1,5 +1,6 @@
 import type { WeatherAgentMode } from "./ai/agents/weather-agent";
 import { weatherAgent } from "./ai/agents/weather-agent";
+import { getLocalWeatherSummary } from "./data/local/weather";
 import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
 import { getRain } from "./data/rain/getRain";
@@ -72,11 +73,13 @@ export async function runPipeline(): Promise<void> {
     console.warn("rainStats scrape failed, continuing pipeline:", error);
   }
   const rain = [...rainLines, ...rainStatsLines].join("\n");
+  const localStation = await getLocalWeatherSummary();
   console.log(rain);
   await weatherAgent(
     savedImages,
     getMumbaiCurrentTimeText(),
     rain,
+    localStation,
     pipelineMode,
   );
 }
