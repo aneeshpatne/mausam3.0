@@ -13,18 +13,20 @@ export async function uploadWithLimit(
   const date = new Date();
   const key = bucketName + "-" + date.toISOString() + ".jpeg";
   const bucket = await listObjectsFromBuckets(bucketName);
-  console.log(bucket.length);
+  console.log(
+    `[s3:upload] Bucket ${bucketName} currently has ${bucket.length} object(s).`,
+  );
   if (bucket.length > 0) {
     const last = bucket[bucket.length - 1];
     const url = process.env.R2_PUBLIC_BASE_URL + bucketName + "/" + last?.Key;
     const oldImageBuffer = await fetchImage(url);
     const result = areBuffersSame(imageBuffer, oldImageBuffer);
     if (result === true) {
-      console.log(`${bucketName} Image has not changed, skipping`);
+      console.log(`[s3:upload] ${bucketName} image unchanged. Skipping upload.`);
       return;
     }
     state.changed = true;
-    console.log(`${bucketName} Image has changed, uploading.`);
+    console.log(`[s3:upload] ${bucketName} image changed. Uploading new image.`);
     await client.send(
       new PutObjectCommand({
         Bucket: bucketName,
