@@ -38,22 +38,22 @@ export async function runPipeline(): Promise<void> {
 
   if (pipelineMode === "morning") {
     console.log(
-      "Morning mode active for IST 7:00 AM to 7:30 AM. Wiping buckets.",
+      "[pipeline] Morning mode active for IST 07:00 to 07:30. Wiping buckets.",
     );
     await wipeAllBuckets();
   }
 
   for (const imageObj of images) {
-    console.log(imageObj.url);
+    console.log(`[pipeline] Fetching radar image from ${imageObj.url}.`);
     const imageBuffer = await fetchImageAsJpeg(imageObj.url);
     await uploadWithLimit(imageObj.bucketName, imageBuffer);
   }
 
   if (state.changed === false) {
-    console.log("All images are same, skipping this attempt");
+    console.log("[pipeline] All images are unchanged. Skipping this run.");
     return;
   }
-  console.log("Images have changed proceeding with AI summarization");
+  console.log("[pipeline] Images changed. Proceeding with AI summarization.");
   const savedImages = await collectSavedImages();
 
   if (savedImages.length !== images.length) {
@@ -70,11 +70,14 @@ export async function runPipeline(): Promise<void> {
     const rainStats = await scrapeRainStats();
     rainStatsLines = formatRainStatsLines(rainStats);
   } catch (error) {
-    console.warn("rainStats scrape failed, continuing pipeline:", error);
+    console.error(
+      "[pipeline] Rain stats scrape failed. Continuing without rain stats.",
+      error,
+    );
   }
   const rain = [...rainLines, ...rainStatsLines].join("\n");
   const localStation = await getLocalWeatherSummary();
-  console.log(rain);
+  console.log("[pipeline] Compiled rain context for agent.", { rain });
   await weatherAgent(
     savedImages,
     getMumbaiCurrentTimeText(),
