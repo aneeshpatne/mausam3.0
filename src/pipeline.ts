@@ -3,6 +3,7 @@ import { weatherAgent } from "./ai/agents/weather-agent";
 import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
 import { getRain } from "./data/rain/getRain";
+import { weatherStations } from "./data/rain/weatherStations";
 import { collectSavedImages } from "./pipeline/helpers/saved-images";
 import type { PipelineState } from "./pipeline/interfaces/pipeline-state";
 import {
@@ -53,7 +54,13 @@ export async function runPipeline(): Promise<void> {
   if (savedImages.length !== images.length) {
     throw new Error("Missing latest image for one or more weather sources");
   }
-  const rainLocal = await getRain(42);
-  const str = `For ${location} 15m: ${rainLocal.last15Minutes}, 1h: ${rainLocal.last1Hour}, 24h: ${rainLocal.last24Hours}`;
+  const rainLines = await Promise.all(
+    weatherStations.map(async (station) => {
+      const rain = await getRain(station.id);
+      return `For ${station.location} 15m: ${rain.last15Minutes}, 1h: ${rain.last1Hour}, 24h: ${rain.last24Hours}`;
+    }),
+  );
+  const str = rainLines.join("\n");
+  console.log(str);
   await weatherAgent(savedImages, getMumbaiCurrentTimeText(), pipelineMode);
 }
