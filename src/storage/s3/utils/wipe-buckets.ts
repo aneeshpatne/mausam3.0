@@ -11,7 +11,10 @@ export async function wipeAllBuckets(): Promise<void> {
           .filter((key): key is string => key !== undefined);
         await deleteObjectsFromBucket(keys, image.bucketName);
       } catch (error) {
-        console.error(`Failed to wipe bucket ${image.bucketName}`, error);
+        console.error(
+          `[s3:wipe-buckets] Failed to wipe bucket ${image.bucketName}.`,
+          error,
+        );
       }
     }),
   );
