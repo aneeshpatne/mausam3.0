@@ -40,4 +40,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 /src/data/rain/weatherStations.ts
 
+/src/data/local/source.ts
+
 /src/scrape/source.ts
