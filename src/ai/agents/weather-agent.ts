@@ -13,23 +13,29 @@ export interface WeatherAgentImageInput {
 
 export type WeatherAgentMode = "default" | "morning";
 
-function buildWeatherSystemPrompt(
+export async function weatherAgent(
+  images: WeatherAgentImageInput[],
   currentTimeText: string,
-  mode: WeatherAgentMode,
-): string {
-  const modeInstructions =
-    mode === "morning"
-      ? [
-          "Morning mode is active.",
-          "Focus on a morning commute and the next few hours after 7:00 AM IST.",
-          "Prioritize concise guidance for early-day rainfall risk, clearing trends, and whether conditions may worsen toward late morning.",
-        ].join("\n")
-      : "Default mode is active.";
+  rainData: string,
+  mode: WeatherAgentMode = "default",
+): Promise<void> {
+  const agent = createAgent({
+    model,
+    tools: [createSendMailTool(), createSendMessageTool(), createAlertTool()],
+  });
 
-  return `You analyze Mumbai MMR weather images.
+  const systemMsg = new SystemMessage(`You analyze Mumbai MMR weather images.
 
 Current local Mumbai time: ${currentTimeText}
-${modeInstructions}
+${
+  mode === "morning"
+    ? [
+        "Morning mode is active.",
+        "Focus on a morning commute and the next few hours after 7:00 AM IST.",
+        "Prioritize concise guidance for early-day rainfall risk, clearing trends, and whether conditions may worsen toward late morning.",
+      ].join("\n")
+    : "Default mode is active."
+}
 
 You must base every conclusion only on the provided images and the text context in the user message.
 Do not assume rainfall totals, timing, wind, lightning, storm motion, station values, or neighborhood-level impacts unless they are visually supported.
@@ -64,22 +70,7 @@ Be explicit there too about future timing whenever the imagery supports it.
 Use 3-6 short lines in Telegram and include weather-appropriate emojis.
 
 The alert message must be 7 words or fewer.
-The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`;
-}
-
-export async function weatherAgent(
-  images: WeatherAgentImageInput[],
-  currentTimeText: string,
-  mode: WeatherAgentMode = "default",
-): Promise<void> {
-  const agent = createAgent({
-    model,
-    tools: [createSendMailTool(), createSendMessageTool(), createAlertTool()],
-  });
-
-  const systemMsg = new SystemMessage(
-    buildWeatherSystemPrompt(currentTimeText, mode),
-  );
+The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`);
   const humanMsg = new HumanMessage({
     contentBlocks: [
       {
@@ -100,8 +91,8 @@ export async function weatherAgent(
       ...images,
     ],
   });
-
-  const messages = [systemMsg, humanMsg];
+  const rainMsg = new HumanMessage(rainData);
+  const messages = [systemMsg, humanMsg, rainMsg];
 
   const response = await agent.invoke({ messages });
 

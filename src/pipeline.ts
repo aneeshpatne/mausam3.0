@@ -73,5 +73,10 @@ export async function runPipeline(): Promise<void> {
   }
   const rain = [...rainLines, ...rainStatsLines].join("\n");
   console.log(rain);
-  await weatherAgent(savedImages, getMumbaiCurrentTimeText(), pipelineMode);
+  await weatherAgent(
+    savedImages,
+    getMumbaiCurrentTimeText(),
+    rain,
+    pipelineMode,
+  );
 }
