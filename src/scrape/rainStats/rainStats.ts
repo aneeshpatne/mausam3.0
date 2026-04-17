@@ -9,15 +9,23 @@ const RETRY_DELAY_MS = 1_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-type RainBlock = {
+export type RainBlock = {
   rain: number | null;
   location: string;
 };
 
-type RainStats = {
+export type RainStats = {
   last15Min: RainBlock;
   last24Hour: RainBlock;
 };
+
+function toRainLine(label: string, block: RainBlock): string | null {
+  if (block.rain === null || block.rain === 0) {
+    return null;
+  }
+
+  return `${label} $ ${block.location} $ ${String(block.rain)}`;
+}
 
 const firstNonEmpty = (...values: Array<string | undefined>) =>
   values.find((value) => (value ?? "").trim().length > 0)?.trim() ?? "N/A";
@@ -96,6 +104,13 @@ function parseRainStats($: cheerio.CheerioAPI): RainStats {
       location: last24HourLocation,
     },
   };
+}
+
+export function formatRainStatsLines(stats: RainStats): string[] {
+  return [
+    toRainLine("last15 min max rain", stats.last15Min),
+    toRainLine("last24 hour max rain", stats.last24Hour),
+  ].filter((line): line is string => line !== null);
 }
 
 export async function scrapeRainStats(): Promise<RainStats> {
