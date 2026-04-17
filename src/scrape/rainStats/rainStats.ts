@@ -55,8 +55,9 @@ async function fetchPageHtml() {
     } catch (error) {
       lastError = error;
       if (attempt < MAX_RETRIES) {
-        console.warn(
-          `Attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${RETRY_DELAY_MS}ms...`,
+        console.error(
+          `[rain-stats] Attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${RETRY_DELAY_MS}ms.`,
+          error,
         );
         await sleep(RETRY_DELAY_MS);
       }
