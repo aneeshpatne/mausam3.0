@@ -60,7 +60,7 @@ export async function runPipeline(): Promise<void> {
       return `For ${station.location} 15m: ${rain.last15Minutes}, 1h: ${rain.last1Hour}, 24h: ${rain.last24Hours}`;
     }),
   );
-  const str = rainLines.join("\n");
-  console.log(str);
+  const rain = rainLines.join("\n");
+  console.log(rain);
   await weatherAgent(savedImages, getMumbaiCurrentTimeText(), pipelineMode);
 }
