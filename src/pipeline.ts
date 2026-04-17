@@ -10,6 +10,10 @@ import {
   getMumbaiCurrentTimeText,
   getMumbaiNowParts,
 } from "./pipeline/time/mumbai-time";
+import {
+  formatRainStatsLines,
+  scrapeRainStats,
+} from "./scrape/rainStats/rainStats";
 import { uploadWithLimit } from "./storage/s3/helpers/upload-with-limit";
 import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
 
@@ -60,7 +64,14 @@ export async function runPipeline(): Promise<void> {
       return `For ${station.location} 15m: ${rain.last15Minutes}, 1h: ${rain.last1Hour}, 24h: ${rain.last24Hours}`;
     }),
   );
-  const rain = rainLines.join("\n");
+  let rainStatsLines: string[] = [];
+  try {
+    const rainStats = await scrapeRainStats();
+    rainStatsLines = formatRainStatsLines(rainStats);
+  } catch (error) {
+    console.warn("rainStats scrape failed, continuing pipeline:", error);
+  }
+  const rain = [...rainLines, ...rainStatsLines].join("\n");
   console.log(rain);
   await weatherAgent(savedImages, getMumbaiCurrentTimeText(), pipelineMode);
 }
