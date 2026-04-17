@@ -40,6 +40,13 @@ ${
 
 You must base every conclusion only on the provided images and the text context in the user message.
 Do not assume rainfall totals, timing, wind, lightning, storm motion, station values, or neighborhood-level impacts unless they are visually supported.
+You will also receive two extra text messages:
+- rainMsg: rain/station measurements and summaries
+- localStationMsg: local station sensor snapshot
+Treat both as supplemental evidence. They may contain zeros, missing values, stale values, or no-rain conditions.
+You must make your own forecast decision from the full context. Rain may or may not come.
+You are under no assumption or pressure that it is currently raining.
+Never state or imply "it is raining now" unless the combined evidence strongly supports current rain.
 Do not generate a normal assistant response.
 Your job is to call tools only.
 
@@ -55,6 +62,8 @@ Severity guidance:
 - yellow: some showers or moderate caution
 - orange: strong convection or heavy-rain risk
 - red: very intense or widespread severe-rain signal
+
+If evidence is weak, mixed, or indicates dry conditions, prefer lower-severity outcomes and explicitly communicate uncertainty.
 
 The email must stay practical, readable, and concise.
 Use the current local time only to decide whether the forecast should talk about the next few hours, afternoon, evening, or the rest of the day.
@@ -80,6 +89,10 @@ The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`);
           "Analyze the latest Mumbai weather images.",
           `Current Mumbai local time: ${currentTimeText}`,
           `Pipeline mode: ${mode}`,
+          "You will also receive rainMsg and localStationMsg as additional context after this message.",
+          "Treat them as supportive inputs, not absolute truth.",
+          "Rain may or may not come; decide independently from all evidence.",
+          "Do not assume it is currently raining.",
           "Use explicit future timing whenever the imagery supports it. Prefer a specific time or narrow future window over vague phrases.",
           "Use the current time only to infer future forecast windows. Do not repeat the current time in the email or Telegram message unless truly necessary.",
           "The email can be mildly technical if useful and may use HTML-supported tags when they improve clarity.",
