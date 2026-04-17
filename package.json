@@ -14,7 +14,9 @@
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
     "@langchain/openai": "^1.4.1",
+    "axios": "^1.15.0",
     "bullmq": "^5.73.0",
+    "cheerio": "^1.2.0",
     "langchain": "^1.2.39",
     "sharp": "^0.34.5"
   }
