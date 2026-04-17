@@ -9,7 +9,7 @@ export async function listBuckets(): Promise<ListBucketsCommandOutput | undefine
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
-        `Error from S3 while listing buckets.  ${e.name}: ${e.message}`,
+        `[s3:list-buckets] Failed to list buckets. ${e.name}: ${e.message}`,
       );
     } else {
       throw e;
