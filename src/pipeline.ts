@@ -1,60 +1,20 @@
-import type {
-  WeatherAgentImageInput,
-  WeatherAgentMode,
-} from "./ai/agents/weather-agent";
+import type { WeatherAgentMode } from "./ai/agents/weather-agent";
 import { weatherAgent } from "./ai/agents/weather-agent";
 import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
-import { findLatestObjectStatsFromBucket } from "./storage/s3/helpers/list-objects";
+import { getRain } from "./data/rain/getRain";
+import { collectSavedImages } from "./pipeline/helpers/saved-images";
+import type { PipelineState } from "./pipeline/interfaces/pipeline-state";
+import {
+  getMumbaiCurrentTimeText,
+  getMumbaiNowParts,
+} from "./pipeline/time/mumbai-time";
 import { uploadWithLimit } from "./storage/s3/helpers/upload-with-limit";
 import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
-
-export interface PipelineState {
-  changed: boolean;
-}
 
 export const state: PipelineState = {
   changed: false,
 };
-
-const imageLabelsByBucket: Record<string, string> = {
-  "radar-max-z": "MAX-Z radar",
-  "radar-ppi-z": "PPI-Z radar",
-  "radar-sri": "SRI rainfall estimate",
-  satellite: "Infrared satellite",
-};
-
-function getMumbaiCurrentTimeText(): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    weekday: "short",
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date());
-}
-
-function getMumbaiNowParts(date: Date = new Date()): {
-  hour: number;
-  minute: number;
-} {
-  const parts = new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-
-  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
-  const minute = Number(
-    parts.find((part) => part.type === "minute")?.value ?? "0",
-  );
-
-  return { hour, minute };
-}
 
 function getPipelineMode(date: Date = new Date()): WeatherAgentMode {
   const { hour, minute } = getMumbaiNowParts(date);
@@ -88,34 +48,12 @@ export async function runPipeline(): Promise<void> {
     return;
   }
   console.log("Images have changed proceeding with AI summarization");
-  const savedImages: WeatherAgentImageInput[] = (
-    await Promise.all(
-      images.map(async (imageObj) => {
-        const latestObject = await findLatestObjectStatsFromBucket(
-          imageObj.bucketName,
-        );
-        const latestKey = latestObject?.last?.Key;
-
-        if (!latestKey) {
-          return [];
-        }
-
-        return [
-          {
-            type: "image" as const,
-            url: `${process.env.R2_PUBLIC_BASE_URL}${imageObj.bucketName}/${latestKey}`,
-            label:
-              imageLabelsByBucket[imageObj.bucketName] ?? imageObj.bucketName,
-            bucketName: imageObj.bucketName,
-          },
-        ];
-      }),
-    )
-  ).flat();
+  const savedImages = await collectSavedImages();
 
   if (savedImages.length !== images.length) {
     throw new Error("Missing latest image for one or more weather sources");
   }
-
+  const rainLocal = await getRain(42);
+  const str = `For ${location} 15m: ${rainLocal.last15Minutes}, 1h: ${rainLocal.last1Hour}, 24h: ${rainLocal.last24Hours}`;
   await weatherAgent(savedImages, getMumbaiCurrentTimeText(), pipelineMode);
 }
