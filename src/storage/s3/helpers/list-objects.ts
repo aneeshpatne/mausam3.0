@@ -33,7 +33,7 @@ export async function listObjectsFromBuckets(bucket: string): Promise<_Object[]>
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
-        `Error from S3 while listing objects.  ${e.name}: ${e.message}`,
+        `[s3:list-objects] Failed to list objects for bucket ${bucket}. ${e.name}: ${e.message}`,
       );
       return [];
     } else {
@@ -56,7 +56,7 @@ export async function findLatestObjectStatsFromBucket(
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
-        `Error from S3 while listing Objects.  ${e.name}: ${e.message}`,
+        `[s3:list-objects] Failed to compute latest object stats for bucket ${bucket}. ${e.name}: ${e.message}`,
       );
     } else {
       throw e;
