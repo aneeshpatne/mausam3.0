@@ -8,7 +8,6 @@ export interface WeatherAgentImageInput {
   type: "image";
   url: string;
   label: string;
-  bucketName: string;
   [key: string]: unknown;
 }
 

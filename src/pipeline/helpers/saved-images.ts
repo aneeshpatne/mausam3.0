@@ -28,7 +28,6 @@ export async function collectSavedImages(): Promise<WeatherAgentImageInput[]> {
             url: `${process.env.R2_PUBLIC_BASE_URL}${imageObj.bucketName}/${latestKey}`,
             label:
               imageLabelsByBucket[imageObj.bucketName] ?? imageObj.bucketName,
-            bucketName: imageObj.bucketName,
           },
         ];
       }),
