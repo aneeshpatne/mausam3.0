@@ -117,5 +117,5 @@ The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`);
 
   const response = await agent.invoke({ messages });
 
-  console.log(response);
+  console.log("[weather-agent] Agent response received.", { response });
 }
