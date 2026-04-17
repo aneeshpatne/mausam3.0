@@ -13,11 +13,13 @@ export async function deleteObjectFromBucket(
     await client.send(
       new DeleteObjectCommand({ Bucket: bucketName, Key: name }),
     );
-    console.log(`Successfully Deleted ${name} from Bucket ${bucketName}`);
+    console.log(
+      `[s3:delete] Deleted object ${name} from bucket ${bucketName}.`,
+    );
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
-        `Error from S3 while listing buckets.  ${e.name}: ${e.message}`,
+        `[s3:delete] Failed to delete object ${name} from bucket ${bucketName}. ${e.name}: ${e.message}`,
       );
     } else {
       throw e;
@@ -48,13 +50,13 @@ export async function deleteObjectsFromBucket(
         }),
       );
       console.log(
-        `Successfully Deleted ${batch.length} objects from Bucket ${bucketName}`,
+        `[s3:delete] Deleted ${batch.length} object(s) from bucket ${bucketName}.`,
       );
     }
   } catch (e) {
     if (e instanceof S3ServiceException) {
       console.error(
-        `Error from S3 while deleting objects.  ${e.name}: ${e.message}`,
+        `[s3:delete] Failed to delete objects from bucket ${bucketName}. ${e.name}: ${e.message}`,
       );
     } else {
       throw e;
