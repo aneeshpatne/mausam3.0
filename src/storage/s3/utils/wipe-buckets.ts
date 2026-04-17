@@ -16,7 +16,3 @@ export async function wipeAllBuckets(): Promise<void> {
     }),
   );
 }
-
-if (import.meta.main) {
-  await wipeAllBuckets();
-}
