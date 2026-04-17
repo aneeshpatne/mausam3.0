@@ -4,7 +4,7 @@ import { getLocalWeatherSummary } from "./data/local/weather";
 import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
 import { getRain } from "./data/rain/getRain";
-import { weatherStations } from "./data/rain/weatherStations";
+import { weatherStations } from "./data/rain/sources";
 import { collectSavedImages } from "./pipeline/helpers/saved-images";
 import type { PipelineState } from "./pipeline/interfaces/pipeline-state";
 import {
@@ -61,7 +61,7 @@ export async function runPipeline(): Promise<void> {
   }
   const rainLines = await Promise.all(
     weatherStations.map(async (station) => {
-      const rain = await getRain(station.id);
+      const rain = await getRain(station.station_id);
       return `For ${station.location} 15m: ${rain.last15Minutes}, 1h: ${rain.last1Hour}, 24h: ${rain.last24Hours}`;
     }),
   );
