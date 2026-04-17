@@ -3,7 +3,7 @@ import { tool } from "langchain";
 
 export const save_summary_tool = tool(
   ({ summary }) => {
-    console.log(summary);
+    console.log("[tool:save-summary] Saving weather summary.", { summary });
     return "Summary saved successfully";
   },
   {
