@@ -92,7 +92,10 @@ export function createSendMailTool() {
   return tool(
     async ({ alert_color, subject, mail_content }) => {
       const templatedMail = buildMailTemplate(subject, alert_color, mail_content);
-      console.log({ alert_color, subject, mail_content: templatedMail });
+      console.log("[tool:send-mail] Sending weather mail.", {
+        alert_color,
+        subject,
+      });
       await sendEmailRpc({
         app_id: "MAUSAM",
         to: mailids,
