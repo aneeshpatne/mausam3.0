@@ -13,6 +13,10 @@ export function isWithinActiveHours(delay: number, now = new Date()) {
 
 export async function scheduleJob(delay: number) {
   if (!isWithinActiveHours(delay)) {
+    console.log("[scheduleJob] Skipping delayed job outside active hours.", {
+      delay,
+      activeHours: "07:00-23:00",
+    });
     return false;
   }
 
@@ -26,6 +30,11 @@ export async function scheduleJob(delay: number) {
       removeOnFail: 50,
     },
   );
+
+  console.log("[scheduleJob] Scheduled delayed job.", {
+    delay,
+    jobName: JOB_NAME,
+  });
 
   return true;
 }
