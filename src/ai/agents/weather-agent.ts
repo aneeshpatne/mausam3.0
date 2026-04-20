@@ -3,6 +3,7 @@ import { model } from "./model";
 import { alertTool } from "../tools/alert-tool";
 import { sendMailTool } from "../tools/send-mail";
 import { sendMessageTool } from "../tools/send-message";
+import { scheduleNextJobTool } from "../tools/schedule-next-job-tool";
 
 export interface WeatherAgentImageInput {
   type: "image";
@@ -22,7 +23,7 @@ export async function weatherAgent(
 ): Promise<void> {
   const agent = createAgent({
     model,
-    tools: [sendMailTool, sendMessageTool, alertTool],
+    tools: [sendMailTool, sendMessageTool, alertTool, scheduleNextJobTool],
   });
 
   const systemMsg = new SystemMessage(`You analyze Mumbai MMR weather images.
@@ -54,16 +55,29 @@ Your job is to call tools only.
 
 Required workflow:
 1. Inspect all images together.
-2. Call send_mail exactly once with a concise user-facing weather email that uses the current time only as hidden context to describe what may happen next using explicit future time wording whenever the images support it.
-3. Call send_message exactly once with a longer, structured Telegram update without emojis, using the same severity color.
-4. Call alert_tool exactly once with the final severity color and a banner message.
-5. After tool calls, do not add any extra text under any circumstance.
+2. Decide whether a next run is needed. Use schedule_next_job only when another report is useful later in the same active reporting window.
+3. Call send_mail exactly once with a concise user-facing weather email that uses the current time only as hidden context to describe what may happen next using explicit future time wording whenever the images support it.
+If you schedule the next run, the email must also mention roughly when the next report is planned.
+4. Call send_message exactly once with a longer, structured Telegram update without emojis, using the same severity color.
+5. Call alert_tool exactly once with the final severity color and a banner message.
+6. After tool calls, do not add any extra text under any circumstance.
 
 Severity guidance:
 - green: quiet or low-risk conditions
 - yellow: some showers or moderate caution
 - orange: strong convection or heavy-rain risk
 - red: very intense or widespread severe-rain signal
+
+Next-run delay guidance for schedule_next_job:
+- red: schedule the next run in 1 to 2 hours
+- orange: schedule the next run in 2 to 4 hours
+- yellow: schedule the next run in 4 to 8 hours
+- green: schedule the next run in 6 to 12 hours only if conditions justify another report
+
+Active scheduling window:
+- schedule_next_job only works for target times between 7:00 AM and 11:00 PM local time
+- if the next useful run would land outside that window, skip schedule_next_job safely
+- if no more report is needed for the rest of the day, skip schedule_next_job safely
 
 If evidence is weak, mixed, or indicates dry conditions, prefer lower-severity outcomes and explicitly communicate uncertainty.
 
@@ -72,6 +86,8 @@ Use the current local time only to decide whether the forecast should talk about
 Do not explicitly state the current local time in the email unless it is essential.
 Prefer future-facing phrases such as "by around 1:00 there may be rain", "a few showers may reach later this afternoon", or "the rest of the day looks rain-free".
 Be explicit about future timing whenever the imagery supports it. Prefer a specific future time or a narrow future window over vague phrases like "later" or "soon".
+If you call schedule_next_job, mention the planned next update timing in the email in plain language.
+If you skip schedule_next_job because no more report is needed or because the next useful run would be outside 7:00 AM to 11:00 PM, reflect that naturally in the email when useful, such as saying the rest of the day looks stable or no further update is expected unless conditions change.
 The email may be mildly technical when that improves precision, but it should still remain clear for a normal reader.
 HTML-supported tags may be used in the email when they improve structure or emphasis.
 Include a short explanation of why you expect that outcome, without sounding repetitive.

@@ -3,26 +3,25 @@ import * as z from "zod";
 import { scheduleJob } from "../../bull/scheduleJobs";
 
 const scheduleNextJobDescription =
-  "Schedule Next Job when the target execution time falls within active hours.";
+  "Schedule Next Job by providing a delay in milliseconds, if the target execution time falls within active hours.";
 
 const scheduleNextJobSchema = z.object({
-  delay_seconds: z
+  delay_ms: z
     .number()
     .int()
     .positive()
-    .describe("Delay before execution in seconds"),
+    .describe("Delay before execution in milliseconds"),
 });
 
 export const scheduleNextJobTool = tool(
-  async ({ delay_seconds }) => {
-    const delayMs = delay_seconds * 1000;
-    const scheduled = await scheduleJob(delayMs);
+  async ({ delay_ms }) => {
+    const scheduled = await scheduleJob(delay_ms);
 
     if (!scheduled) {
       return "Delayed job not scheduled because the target time is outside active hours.";
     }
 
-    return `Delayed job scheduled for ${delay_seconds} seconds from now.`;
+    return `Delayed job scheduled for ${delay_ms} milliseconds from now.`;
   },
   {
     name: "schedule_next_job",
