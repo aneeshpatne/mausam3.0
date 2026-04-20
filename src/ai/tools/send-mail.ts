@@ -88,26 +88,24 @@ function buildMailTemplate(
 </html>`;
 }
 
-export function createSendMailTool() {
-  return tool(
-    async ({ alert_color, subject, mail_content }) => {
-      const templatedMail = buildMailTemplate(subject, alert_color, mail_content);
-      console.log("[tool:send-mail] Sending weather mail.", {
-        alert_color,
-        subject,
-      });
-      await sendEmailRpc({
-        app_id: "MAUSAM",
-        to: mailids,
-        subject: subject,
-        body: templatedMail,
-      });
-      return "Mail sent successfully";
-    },
-    {
-      name: "send_mail",
-      description: sendMailDescription,
-      schema: sendMailSchema,
-    },
-  );
-}
+export const sendMailTool = tool(
+  async ({ alert_color, subject, mail_content }) => {
+    const templatedMail = buildMailTemplate(subject, alert_color, mail_content);
+    console.log("[tool:send-mail] Sending weather mail.", {
+      alert_color,
+      subject,
+    });
+    await sendEmailRpc({
+      app_id: "MAUSAM",
+      to: mailids,
+      subject: subject,
+      body: templatedMail,
+    });
+    return "Mail sent successfully";
+  },
+  {
+    name: "send_mail",
+    description: sendMailDescription,
+    schema: sendMailSchema,
+  },
+);

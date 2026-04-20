@@ -20,16 +20,14 @@ const alertToolSchema = z.object({
   ),
 });
 
-export function createAlertTool() {
-  return tool(
-    ({ message, color }) => {
-      console.log("[tool:alert] Sending alert banner.", { message, color });
-      return "Alert sent successfully";
-    },
-    {
-      name: "alert_tool",
-      description: alertToolDescription,
-      schema: alertToolSchema,
-    },
-  );
-}
+export const alertTool = tool(
+  ({ message, color }) => {
+    console.log("[tool:alert] Sending alert banner.", { message, color });
+    return "Alert sent successfully";
+  },
+  {
+    name: "alert_tool",
+    description: alertToolDescription,
+    schema: alertToolSchema,
+  },
+);

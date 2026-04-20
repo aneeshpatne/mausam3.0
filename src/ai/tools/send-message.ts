@@ -25,18 +25,16 @@ const telegramAlertHeader: Record<z.infer<typeof alertColorSchema>, string> = {
   red: "🔴 <b>RED ALERT</b>",
 };
 
-export function createSendMessageTool() {
-  return tool(
-    async ({ message, alert_color }) => {
-      const header = telegramAlertHeader[alert_color];
-      const formattedMessage = `${header}\n${message}`;
-      await sendTelegramRpc({ html: formattedMessage });
-      return "Telegram message sent successfully";
-    },
-    {
-      name: "send_message",
-      description: sendMessageDescription,
-      schema: sendMessageSchema,
-    },
-  );
-}
+export const sendMessageTool = tool(
+  async ({ message, alert_color }) => {
+    const header = telegramAlertHeader[alert_color];
+    const formattedMessage = `${header}\n${message}`;
+    await sendTelegramRpc({ html: formattedMessage });
+    return "Telegram message sent successfully";
+  },
+  {
+    name: "send_message",
+    description: sendMessageDescription,
+    schema: sendMessageSchema,
+  },
+);

@@ -1,8 +1,8 @@
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { model } from "./model";
-import { createAlertTool } from "../tools/alert-tool";
-import { createSendMailTool } from "../tools/send-mail";
-import { createSendMessageTool } from "../tools/send-message";
+import { alertTool } from "../tools/alert-tool";
+import { sendMailTool } from "../tools/send-mail";
+import { sendMessageTool } from "../tools/send-message";
 
 export interface WeatherAgentImageInput {
   type: "image";
@@ -22,7 +22,7 @@ export async function weatherAgent(
 ): Promise<void> {
   const agent = createAgent({
     model,
-    tools: [createSendMailTool(), createSendMessageTool(), createAlertTool()],
+    tools: [sendMailTool, sendMessageTool, alertTool],
   });
 
   const systemMsg = new SystemMessage(`You analyze Mumbai MMR weather images.
