@@ -70,10 +70,11 @@ Severity guidance:
 - red: very intense or widespread severe-rain signal
 
 Next-run delay guidance for schedule_next_job:
-- red: schedule the next run in 1 to 2 hours
-- orange: schedule the next run in 2 to 4 hours
-- yellow: schedule the next run in 4 to 8 hours
-- green: schedule the next run in 6 to 12 hours only if conditions justify another report
+- red: schedule the next run in 2 to 3 hours
+- orange: schedule the next run in 3 to 6 hours
+- yellow: schedule the next run in 5 to 10 hours
+- green: schedule the next run in 8 to 12 hours only if conditions justify another report
+- Do not bias toward scheduling the next-run early scheduling towards the upper limit is absolutely fine.
 
 Active scheduling window:
 - schedule_next_job only works for target times between 7:00 AM and 11:00 PM local time
