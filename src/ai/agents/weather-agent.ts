@@ -74,7 +74,7 @@ Next-run delay guidance for schedule_next_job:
 - orange: schedule the next run in 3 to 6 hours
 - yellow: schedule the next run in 5 to 10 hours
 - green: schedule the next run in 8 to 12 hours only if conditions justify another report
-- Do not bias toward scheduling the next-run early scheduling towards the upper limit is absolutely fine.
+- Do not bias toward scheduling the next-run early, scheduling towards the upper limit is absolutely fine.
 - Never schedule below the minimum time given in guidance.
 
 Active scheduling window:
