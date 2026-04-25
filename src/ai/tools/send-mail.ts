@@ -5,7 +5,7 @@ import { mailids } from "./mail_ids";
 
 const alertColorSchema = z.enum(["green", "yellow", "orange", "red"]);
 const sendMailDescription =
-  "Prepare one concise user-facing weather mail after saving the internal summary. The content is wrapped in an HTML email template with alert color header and a Powered by Mausam3.0 footer.";
+  "Prepare one concise user-facing weather mail after saving the internal summary. The content is wrapped in an HTML email template with alert color header and a Powered by Mausam3.0 footer. The email must explicitly mention the next-update decision: roughly when the next report is planned if schedule_next_job was used, or why no next run was scheduled if it was skipped.";
 const sendMailSchema = z.object({
   alert_color: alertColorSchema.describe(
     "Severity color based only on the images: green, yellow, orange, or red",
@@ -20,7 +20,7 @@ const sendMailSchema = z.object({
     .string()
     .trim()
     .describe(
-      "Weather email body. It may be mildly technical when useful and may use HTML-supported tags for structure or emphasis. Do not explicitly mention the current local time unless essential. Use it only to frame a future-facing forecast. Be explicit about future timing whenever the imagery supports it, preferring a specific future time or a narrow future window such as by around 1:00, between 1:00 and 3:00, this evening, or for the rest of the day, instead of vague phrases like later or soon. Use AM/PM only when it makes the timing clearer. Include a short explanation of why rain or dry weather is expected.",
+      "Weather email body. It may be mildly technical when useful and may use HTML-supported tags for structure or emphasis. Do not explicitly mention the current local time unless essential. Use it only to frame a future-facing forecast. Be explicit about future timing whenever the imagery supports it, preferring a specific future time or a narrow future window such as by around 1:00, between 1:00 and 3:00, this evening, or for the rest of the day, instead of vague phrases like later or soon. Use AM/PM only when it makes the timing clearer. Include a short explanation of why rain or dry weather is expected. The email must explicitly mention the next-update decision: if a next run was scheduled, say roughly when the next report is planned; if not, say why it is being skipped.",
     ),
 });
 

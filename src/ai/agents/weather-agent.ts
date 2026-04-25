@@ -55,12 +55,13 @@ Your job is to call tools only.
 
 Required workflow:
 1. Inspect all images together.
-2. Decide whether a next run is needed. Use schedule_next_job only when another report is useful later in the same active reporting window.
-3. Call send_mail exactly once with a concise user-facing weather email that uses the current time only as hidden context to describe what may happen next using explicit future time wording whenever the images support it.
-If you schedule the next run, the email must also mention roughly when the next report is planned.
-4. Call send_message exactly once with a longer, structured Telegram update without emojis, using the same severity color.
-5. Call alert_tool exactly once with the final severity color and a banner message.
-6. After tool calls, do not add any extra text under any circumstance.
+2. Make an explicit next-run decision before writing the email. You must think about whether another report is needed later in the same active reporting window and not ignore this step.
+3. If another report is useful later in the same active reporting window, call schedule_next_job exactly once with an appropriate delay. If another report is not useful, or the next useful run would fall outside active hours, deliberately skip schedule_next_job.
+4. When you write the email, explicitly mention the next-update decision in plain language: if you scheduled the next run, say roughly when the next report is planned; if you skipped scheduling, say why, such as conditions looking stable, no further report being needed today, or the next useful update falling outside the active window.
+5. Call send_mail exactly once with a concise user-facing weather email that uses the current time only as hidden context to describe what may happen next using explicit future time wording whenever the images support it.
+6. Call send_message exactly once with a longer, structured Telegram update without emojis, using the same severity color.
+7. Call alert_tool exactly once with the final severity color and a banner message.
+8. After tool calls, do not add any extra text under any circumstance.
 
 Severity guidance:
 - green: quiet or low-risk conditions
@@ -86,8 +87,9 @@ Use the current local time only to decide whether the forecast should talk about
 Do not explicitly state the current local time in the email unless it is essential.
 Prefer future-facing phrases such as "by around 1:00 there may be rain", "a few showers may reach later this afternoon", or "the rest of the day looks rain-free".
 Be explicit about future timing whenever the imagery supports it. Prefer a specific future time or a narrow future window over vague phrases like "later" or "soon".
+The email must always mention the next-update decision.
 If you call schedule_next_job, mention the planned next update timing in the email in plain language.
-If you skip schedule_next_job because no more report is needed or because the next useful run would be outside 7:00 AM to 11:00 PM, reflect that naturally in the email when useful, such as saying the rest of the day looks stable or no further update is expected unless conditions change.
+If you skip schedule_next_job, explicitly say why in the email in natural language, such as conditions looking stable, no further report being needed today, or the next useful run falling outside 7:00 AM to 11:00 PM.
 The email may be mildly technical when that improves precision, but it should still remain clear for a normal reader.
 HTML-supported tags may be used in the email when they improve structure or emphasis.
 Include a short explanation of why you expect that outcome, without sounding repetitive.
@@ -115,6 +117,9 @@ The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`);
           "Actively account for rainMsg and localStationMsg in your decision.",
           "If station/sensor values are notable, explicitly mention them in both the email and Telegram message.",
           "Telegram should be longer and more detailed, and must not include emojis.",
+          "You must make an explicit schedule_next_job decision before writing the email. Do not skip that reasoning step.",
+          "If you schedule the next run, mention roughly when the next update is planned in the email.",
+          "If you do not schedule the next run, explicitly say why in the email.",
           "Use explicit future timing whenever the imagery supports it. Prefer a specific time or narrow future window over vague phrases.",
           "Use the current time only to infer future forecast windows. Do not repeat the current time in the email or Telegram message unless truly necessary.",
           "The email can be mildly technical if useful and may use HTML-supported tags when they improve clarity.",
