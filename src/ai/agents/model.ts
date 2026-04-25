@@ -1,3 +1,3 @@
 import { initChatModel } from "langchain";
 
-export const model = await initChatModel("gpt-5.4-mini");
+export const model = await initChatModel("gpt-5.5");
