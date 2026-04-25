@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.mausam3.orchestrator</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/aneesh/.bun/bin/bun</string>
+		<string>src/bull/orchestrator.ts</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>/Users/aneesh/coding/mausam3.0</string>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>ProcessType</key>
+	<string>Background</string>
+
+	<key>StandardOutPath</key>
+	<string>/tmp/mausam3.orchestrator.out.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>/tmp/mausam3.orchestrator.err.log</string>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/aneesh/.bun/bin</string>
+	</dict>
+</dict>
+</plist>
