@@ -75,7 +75,8 @@ Next-run delay guidance for schedule_next_job:
 
 Active scheduling window:
 - schedule_next_job only works for target times between 7:00 AM and 11:00 PM local time
-- skip schedule_next_job if the next useful run would land outside that window or no more report is needed today
+- if the next useful run would land outside that window, skip schedule_next_job entirely
+- do not schedule a next-day run
 
 If evidence is weak, mixed, or indicates dry conditions, prefer lower-severity outcomes and explicitly communicate uncertainty.
 
