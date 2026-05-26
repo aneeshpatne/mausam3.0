@@ -15,8 +15,11 @@ import {
   formatRainStatsLines,
   scrapeRainStats,
 } from "./scrape/rainStats/rainStats";
+import { scheduleJob } from "./bull/scheduleJobs";
 import { uploadWithLimit } from "./storage/s3/helpers/upload-with-limit";
 import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
+
+const UNCHANGED_IMAGES_RETRY_DELAY_MS = 30 * 60 * 1000;
 
 export const state: PipelineState = {
   changed: false,
@@ -51,6 +54,14 @@ export async function runPipeline(): Promise<void> {
 
   if (state.changed === false) {
     console.log("[pipeline] All images are unchanged. Skipping this run.");
+    try {
+      await scheduleJob(UNCHANGED_IMAGES_RETRY_DELAY_MS);
+    } catch (err) {
+      console.error(
+        "[pipeline] Failed to schedule retry after unchanged images.",
+        err,
+      );
+    }
     return;
   }
   console.log("[pipeline] Images changed. Proceeding with AI summarization.");

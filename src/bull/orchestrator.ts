@@ -1,5 +1,6 @@
 import { Queue, Worker } from "bullmq";
 import { runPipeline } from "../pipeline";
+import { scheduleJob } from "./scheduleJobs";
 
 const connection = {
   host: "127.0.0.1",
@@ -11,6 +12,7 @@ const DAILY_JOB_NAME = "daily-weather-pipeline";
 const STARTUP_JOB_NAME = "startup-weather-pipeline";
 const DAILY_JOB_CRON = "15 7 * * *";
 const DAILY_JOB_TIMEZONE = "Asia/Kolkata";
+const FAILURE_RETRY_DELAY_MS = 30 * 60 * 1000;
 
 export const q = new Queue(QUEUE_NAME, { connection });
 
@@ -64,8 +66,17 @@ try {
     console.log(`[orchestrator] Job ${job.id} completed.`);
   });
 
-  worker.on("failed", (job, err) => {
+  worker.on("failed", async (job, err) => {
     console.error(`[orchestrator] Job ${job?.id ?? "unknown"} failed.`, err);
+
+    try {
+      await scheduleJob(FAILURE_RETRY_DELAY_MS);
+    } catch (scheduleErr) {
+      console.error(
+        "[orchestrator] Failed to schedule retry after job failure.",
+        scheduleErr,
+      );
+    }
   });
 } catch (err) {
   console.error("[orchestrator] Failed to initialize pipeline jobs.", err);
