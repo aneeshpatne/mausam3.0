@@ -41,21 +41,21 @@ ${
 
 Expected outcome:
 - decide the current Mumbai MMR rain severity from the images and supplemental text
-- send one concise email, one fuller Telegram update, one alert banner, and optionally one follow-up schedule
+- send one concise email, one fuller Discord update, one alert banner, and optionally one follow-up schedule
 - stop after the required tool calls without returning normal assistant text
 
 Evidence rules:
 Use only the provided images, rainMsg, localStationMsg, and user text.
 Treat rainMsg and localStationMsg as supplemental; they may contain zeros, missing, stale, or no-rain values.
 Do not assume rainfall totals, timing, wind, lightning, storm motion, station values, neighborhood impacts, or current rain unless the combined evidence supports it.
-If station/sensor values are notable, mention them in both email and Telegram.
+If station/sensor values are notable, mention them in both email and Discord.
 
 Tool workflow:
 1. Inspect all images together.
 2. Decide whether another report is useful later in the active window.
 3. If useful, call schedule_next_job exactly once with an appropriate delay; otherwise skip it.
 4. Call send_mail exactly once with a concise user-facing email that mentions the next-update decision.
-5. Call send_message exactly once with a longer, structured Telegram update without emojis, using the same severity color.
+5. Call send_message exactly once with a longer, structured Discord update without emojis, using the same severity color.
 6. Call alert_tool exactly once with the final severity color and a banner message.
 7. After tool calls, do not add extra text.
 
@@ -87,7 +87,7 @@ Email:
 - mention whether the next run was scheduled or why it was skipped
 - may use mild technical detail or HTML-supported tags when useful
 
-Telegram:
+Discord:
 - more detailed and technical than the email when useful
 - future-facing, with explicit timing when supported
 - 8-14 lines when useful for clarity
