@@ -1,12 +1,12 @@
 # Mausam 3.0
 
 Mausam 3.0 is a Bun + TypeScript weather nowcasting pipeline for Mumbai MMR.
-It continuously ingests radar and satellite imagery, stores snapshots in object storage,
+It continuously ingests radar and rain-accumulation imagery, stores snapshots in object storage,
 detects meaningful image changes, and triggers an AI weather summary only when new weather signals appear.
 
 ## What This Project Does
 
-- Fetches weather imagery from configured upstream sources (radar + satellite).
+- Fetches radar imagery and captures the configured Windy rain-accumulation map.
 - Normalizes images to compressed JPEG for lightweight storage/analysis.
 - Uploads images to S3-compatible storage (Cloudflare R2 style endpoint supported).
 - Detects whether the latest frame changed from the previous one.
@@ -61,6 +61,7 @@ sequenceDiagram
 - Model init: `initChatModel` via LangChain
 - Object storage: AWS SDK v3 (`@aws-sdk/client-s3`)
 - Image processing: Sharp
+- Browser capture: Puppeteer with its managed Chromium installation
 - gRPC client: `@grpc/grpc-js` + `@grpc/proto-loader`
 
 ## Project Structure
@@ -137,7 +138,7 @@ This project includes a ready-to-import gRPC client wrapper for `MailerService`.
 - Client wrapper: `src/grpc/client/mailer-client.ts`
 - Barrel exports: `src/grpc/client/index.ts`
 
-By default, the client connects to `localhost:50052`.
+By default, the client connects to `localhost:50055`.
 You can override this with `MAILER_GRPC_ADDRESS`.
 
 Example:
@@ -157,9 +158,21 @@ await sendTelegramRpc({
 });
 ```
 
+## gRPC Discord Webhook Client
+
+The weather message tool sends Discord text updates through `DiscordWebhook`.
+The mail client remains on the existing `MailerService`.
+
+- Proto file: `src/grpc/proto/discord_webhook.proto`
+- Client wrapper: `src/grpc/client/discord-webhook-client.ts`
+- Default address: `localhost:50051`
+- Override address with `DISCORD_WEBHOOK_GRPC_ADDRESS`
+- Override message channel with `DISCORD_CHANNEL_NAME` (defaults to `weather`)
+
 ## Data and Retention Behavior
 
-- Images are resized to `800x800` and compressed as JPEG (`quality: 20`) before upload.
+- Direct radar images are resized to `800x800` and compressed as JPEG (`quality: 20`) before upload.
+- The Windy rain-accumulation source is captured as a full `1280x720` JPEG viewport, including its timeline, legend, city values, and controls.
 - Change detection compares new image bytes with the latest stored image bytes using `Bun.hash`.
 - If an image has not changed, that upload is skipped.
 - When new images are uploaded, older objects are pruned to keep storage bounded (approximately the most recent few per bucket).
@@ -177,6 +190,7 @@ await sendTelegramRpc({
 - Ensure your object buckets already exist before running uploads.
 - `R2_PUBLIC_BASE_URL` must point to publicly reachable object URLs, or AI image fetch may fail.
 - If upstream image URLs fail, the pipeline throws `Image fetch failed`.
+- If Windy fails to render, the pipeline continues with the last stored Windy screenshot when available; a first run can continue with radar imagery alone.
 - If your S3 API keys are invalid, helper methods report `S3ServiceException` errors.
 
 ## Quick Verification Checklist
