@@ -1,12 +1,12 @@
 import type { WeatherAgentMode } from "./ai/agents/weather-agent";
 import { weatherAgent } from "./ai/agents/weather-agent";
 import { getLocalWeatherSummary } from "./data/local/weather";
-import { fetchImageAsJpeg } from "./data/radar/get-image";
 import { images } from "./data/radar/radar-image";
 import { getRain } from "./data/rain/getRain";
 import { weatherStations } from "./data/rain/sources";
 import { collectSavedImages } from "./pipeline/helpers/saved-images";
-import type { PipelineState } from "./pipeline/interfaces/pipeline-state";
+import { ingestWeatherImages } from "./pipeline/helpers/ingest-weather-images";
+import { state } from "./pipeline/interfaces/pipeline-state";
 import {
   getMumbaiCurrentTimeText,
   getMumbaiNowParts,
@@ -16,14 +16,9 @@ import {
   scrapeRainStats,
 } from "./scrape/rainStats/rainStats";
 import { scheduleJob } from "./bull/scheduleJobs";
-import { uploadWithLimit } from "./storage/s3/helpers/upload-with-limit";
 import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
 
 const UNCHANGED_IMAGES_RETRY_DELAY_MS = 30 * 60 * 1000;
-
-export const state: PipelineState = {
-  changed: false,
-};
 
 function getPipelineMode(date: Date = new Date()): WeatherAgentMode {
   const { hour, minute } = getMumbaiNowParts(date);
@@ -46,11 +41,7 @@ export async function runPipeline(): Promise<void> {
     await wipeAllBuckets();
   }
 
-  for (const imageObj of images) {
-    console.log(`[pipeline] Fetching radar image from ${imageObj.url}.`);
-    const imageBuffer = await fetchImageAsJpeg(imageObj.url);
-    await uploadWithLimit(imageObj.bucketName, imageBuffer);
-  }
+  await ingestWeatherImages(images);
 
   if (state.changed === false) {
     console.log("[pipeline] All images are unchanged. Skipping this run.");
@@ -67,9 +58,6 @@ export async function runPipeline(): Promise<void> {
   console.log("[pipeline] Images changed. Proceeding with AI summarization.");
   const savedImages = await collectSavedImages();
 
-  if (savedImages.length !== images.length) {
-    throw new Error("Missing latest image for one or more weather sources");
-  }
   const rainLines = await Promise.all(
     weatherStations.map(async (station) => {
       const rain = await getRain(station.station_id);
