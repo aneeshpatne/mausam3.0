@@ -69,7 +69,7 @@ Severity guidance:
 Next-run delay guidance for schedule_next_job:
 - red: schedule the next run in 2 to 3 hours
 - orange: schedule the next run in 3 to 6 hours
-- yellow: schedule the next run in 5 to 10 hours
+- yellow: schedule the next run in 3 to 10 hours
 - green: schedule the next run in 8 to 12 hours 
 - For green, scheduling toward the upper limit is absolutely fine.
 - For orange and yellow, scheduling toward the lower limit is also acceptable when the situation could evolve quickly or confidence is lower.
