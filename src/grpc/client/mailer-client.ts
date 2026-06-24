@@ -3,7 +3,7 @@ import * as protoLoader from "@grpc/proto-loader";
 import { join } from "node:path";
 
 const MAILER_PROTO_PATH = join(import.meta.dir, "../proto/sandesh.proto");
-const DEFAULT_MAILER_ADDRESS = process.env.MAILER_GRPC_ADDRESS ?? "localhost:50052";
+const DEFAULT_MAILER_ADDRESS = process.env.MAILER_GRPC_ADDRESS ?? "localhost:50055";
 
 export interface SendEmailRequest {
   app_id: string;
