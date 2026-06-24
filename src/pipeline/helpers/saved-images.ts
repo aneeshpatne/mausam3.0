@@ -6,19 +6,24 @@ const imageLabelsByBucket: Record<string, string> = {
   "radar-max-z": "MAX-Z radar",
   "radar-ppi-z": "PPI-Z radar",
   "radar-sri": "SRI rainfall estimate",
-  satellite: "Infrared satellite",
+  satellite: "Windy rain accumulation",
 };
 
-export async function collectSavedImages(): Promise<WeatherAgentImageInput[]> {
+export async function collectSavedImages(
+  findLatest = findLatestObjectStatsFromBucket,
+): Promise<WeatherAgentImageInput[]> {
   const savedImages: WeatherAgentImageInput[] = (
     await Promise.all(
       images.map(async (imageObj) => {
-        const latestObject = await findLatestObjectStatsFromBucket(
-          imageObj.bucketName,
-        );
+        const latestObject = await findLatest(imageObj.bucketName);
         const latestKey = latestObject?.last?.Key;
 
         if (!latestKey) {
+          if (imageObj.kind === "direct") {
+            throw new Error(
+              `Missing latest image for required weather source ${imageObj.bucketName}`,
+            );
+          }
           return [];
         }
 
