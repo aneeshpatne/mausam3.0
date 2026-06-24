@@ -7,12 +7,12 @@
 
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Users/aneesh/.bun/bin/bun</string>
+		<string>/opt/homebrew/bin/bun</string>
 		<string>src/bull/orchestrator.ts</string>
 	</array>
 
 	<key>WorkingDirectory</key>
-	<string>/Users/aneesh/coding/mausam3.0</string>
+	<string>/Users/aneeshpatne/code/mausam3.0</string>
 
 	<key>RunAtLoad</key>
 	<true/>
@@ -32,7 +32,13 @@
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>PATH</key>
-		<string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/aneesh/.bun/bin</string>
+		<string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/aneeshpatne/.bun/bin</string>
+		<key>DISCORD_WEBHOOK_GRPC_ADDRESS</key>
+		<string>localhost:50051</string>
+		<key>DISCORD_CHANNEL_NAME</key>
+		<string>weather</string>
+		<key>MAILER_GRPC_ADDRESS</key>
+		<string>localhost:50055</string>
 	</dict>
 </dict>
 </plist>
