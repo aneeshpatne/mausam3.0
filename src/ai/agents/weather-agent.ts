@@ -21,6 +21,7 @@ export async function weatherAgent(
   localStation: string,
   mode: WeatherAgentMode = "default",
 ): Promise<void> {
+  const imageOrderText = images.map((image) => image.label).join(", ");
   const agent = createAgent({
     model,
     tools: [sendMailTool, sendMessageTool, alertTool, scheduleNextJobTool],
@@ -70,7 +71,8 @@ Next-run delay guidance for schedule_next_job:
 - orange: schedule the next run in 3 to 6 hours
 - yellow: schedule the next run in 5 to 10 hours
 - green: schedule the next run in 8 to 12 hours 
-- Do not bias toward scheduling the next-run early, scheduling towards the upper limit is absolutely fine.
+- For green, scheduling toward the upper limit is absolutely fine.
+- For orange and yellow, scheduling toward the lower limit is also acceptable when the situation could evolve quickly or confidence is lower.
 - Never schedule below the minimum time given in guidance.
 
 Active scheduling window:
@@ -78,7 +80,7 @@ Active scheduling window:
 - if the next useful run would land outside that window, skip schedule_next_job entirely
 - do not schedule a next-day run
 
-If evidence is weak, mixed, or indicates dry conditions, prefer lower-severity outcomes and explicitly communicate uncertainty.
+If evidence is weak, mixed, or indicates dry conditions, prefer lower-severity outcomes and clearly say confidence is limited or the signal is mixed.
 
 Email:
 - practical, readable, concise, and clear for a normal reader
@@ -94,24 +96,9 @@ Discord:
 - no emojis
 
 The alert message must be 7 words or fewer.
-The images are provided in this order: MAX-Z, PPI-Z, SRI, Satellite.`);
+The images are provided in this order: ${imageOrderText}.`);
   const humanMsg = new HumanMessage({
-    contentBlocks: [
-      {
-        type: "text",
-        text: [
-          "Analyze the latest Mumbai weather images.",
-          `Current Mumbai local time: ${currentTimeText}`,
-          `Pipeline mode: ${mode}`,
-          "You will also receive rainMsg and localStationMsg as additional context after this message.",
-          "Treat them as supportive inputs, not absolute truth.",
-          "Follow the system workflow and output rules exactly.",
-          "Use the labels below to map each image to its source.",
-          ...images.map((image, index) => `${index + 1}. ${image.label}`),
-        ].join("\n"),
-      },
-      ...images,
-    ],
+    contentBlocks: images,
   });
   const rainMsg = new HumanMessage(rainData);
   const localStationMsg = new HumanMessage(localStation);
