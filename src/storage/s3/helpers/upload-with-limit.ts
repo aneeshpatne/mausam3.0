@@ -4,7 +4,7 @@ import { fetchImage } from "../../../data/radar/get-image";
 import { client } from "../client/s3";
 import { listObjectsFromBuckets } from "./list-objects";
 import { deleteObjectsFromBucket } from "./delete-items-in-bucket";
-import { state } from "../../../pipeline";
+import { state } from "../../../pipeline/interfaces/pipeline-state";
 
 export async function uploadWithLimit(
   bucketName: string,
