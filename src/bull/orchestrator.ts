@@ -1,5 +1,6 @@
 import { Queue, Worker } from "bullmq";
 import { runPipeline } from "../pipeline";
+import { runSecondaryPipeline } from "../secondaryPipeline";
 import { scheduleJob } from "./scheduleJobs";
 
 const connection = {
@@ -12,6 +13,8 @@ const DAILY_JOB_NAME = "daily-weather-pipeline";
 const STARTUP_JOB_NAME = "startup-weather-pipeline";
 const DAILY_JOB_CRON = "15 7 * * *";
 const DAILY_JOB_TIMEZONE = "Asia/Kolkata";
+const SECONDARY_DAILY_JOB_NAME = "daily-secondary-pipeline";
+const SECONDARY_DAILY_JOB_CRON = "0 7 * * *";
 const UPTIME_KUMA_JOB_NAME = "uptime-kuma-ping";
 const UPTIME_KUMA_SCHEDULER_ID = "uptime-kuma-ping-every-minute";
 const UPTIME_KUMA_JOB_CRON = "* * * * *";
@@ -68,6 +71,24 @@ try {
     `[orchestrator] Scheduled ${DAILY_JOB_NAME} for ${DAILY_JOB_CRON} (${DAILY_JOB_TIMEZONE}).`,
   );
 
+  await q.add(
+    SECONDARY_DAILY_JOB_NAME,
+    {},
+    {
+      jobId: SECONDARY_DAILY_JOB_NAME,
+      repeat: {
+        pattern: SECONDARY_DAILY_JOB_CRON,
+        tz: DAILY_JOB_TIMEZONE,
+      },
+      removeOnComplete: 10,
+      removeOnFail: 50,
+    },
+  );
+
+  console.log(
+    `[orchestrator] Scheduled ${SECONDARY_DAILY_JOB_NAME} for ${SECONDARY_DAILY_JOB_CRON} (${DAILY_JOB_TIMEZONE}).`,
+  );
+
   await q.upsertJobScheduler(
     UPTIME_KUMA_SCHEDULER_ID,
     { pattern: UPTIME_KUMA_JOB_CRON },
@@ -91,6 +112,14 @@ try {
       if (job.name === UPTIME_KUMA_JOB_NAME) {
         await pushUptimeKuma(UPTIME_KUMA_PUSH_URL);
         console.log(`[orchestrator] Uptime Kuma ping sent for job ${job.id}.`);
+        return;
+      }
+
+      if (job.name === SECONDARY_DAILY_JOB_NAME) {
+        await runSecondaryPipeline();
+        console.log(
+          `[orchestrator] Secondary pipeline executed for job ${job.id}.`,
+        );
         return;
       }
 
@@ -120,6 +149,10 @@ try {
     console.error(`[orchestrator] Job ${job?.id ?? "unknown"} failed.`, err);
 
     if (job?.name === UPTIME_KUMA_JOB_NAME) {
+      return;
+    }
+
+    if (job?.name === SECONDARY_DAILY_JOB_NAME) {
       return;
     }
 
