@@ -1,7 +1,14 @@
 import sharp from "sharp";
 
+const TROPICAL_TIDBITS_REQUEST_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+  Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+  Referer: "https://www.example.com/analysis/models/",
+};
+
 export async function fetchImageAsJpeg(url: string): Promise<Buffer> {
-  const res = await fetch(url);
+  const res = await fetch(url, getImageFetchInit(url));
 
   if (!res.ok) {
     throw new Error("Image fetch failed");
@@ -18,11 +25,21 @@ export async function fetchImageAsJpeg(url: string): Promise<Buffer> {
 }
 
 export async function fetchImage(url: string): Promise<Buffer> {
-  const res = await fetch(url);
+  const res = await fetch(url, getImageFetchInit(url));
 
   if (!res.ok) {
     throw new Error("Image fetch failed");
   }
   const arrayBuffer = await res.arrayBuffer();
   return Buffer.from(arrayBuffer);
+}
+
+function getImageFetchInit(url: string): RequestInit | undefined {
+  if (!new URL(url).hostname.endsWith("example.com")) {
+    return undefined;
+  }
+
+  return {
+    headers: TROPICAL_TIDBITS_REQUEST_HEADERS,
+  };
 }
