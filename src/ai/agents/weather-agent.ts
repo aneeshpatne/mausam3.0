@@ -21,6 +21,7 @@ export async function weatherAgent(
   rainData: string,
   localStation: string,
   prevStatus: string | null,
+  secondaryStatus: string | null,
   mode: WeatherAgentMode = "default",
 ): Promise<void> {
   const imageOrderText = images.map((image) => image.label).join(", ");
@@ -48,6 +49,11 @@ ${
     : "Default mode is active."
 }
 ${prevStatus ? `Previous saved status for context: ${prevStatus}` : ""}
+${
+  secondaryStatus
+    ? `Future outlook from the secondary model-analysis agent (medium-range GFS/ECMWF forecast, next 1-5 days, exact IST dates): ${secondaryStatus}`
+    : ""
+}
 
 Expected outcome:
 - decide the current Mumbai MMR rain severity from the images and supplemental text
@@ -63,6 +69,7 @@ The GFS and ECMWF model images are forecast guidance for the next 6 hours, not o
 Use GFS and ECMWF to inform near-future risk and timing, but let radar and station observations override model guidance when they conflict.
 Mention agreement or disagreement between GFS and ECMWF when it materially changes confidence or timing.
 Do not describe model precipitation as currently happening unless radar, rainMsg, or localStationMsg also supports current rain.
+The future outlook (when present) is a medium-range days 1-5 context only, not a current or next-6-hours signal. It must never override current radar, rainMsg, or localStationMsg observations. You may reference it briefly in email or Discord only when it changes near-term confidence or framing.
 
 Tool workflow:
 1. Inspect all images together.

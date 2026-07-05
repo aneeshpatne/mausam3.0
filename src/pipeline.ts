@@ -20,6 +20,7 @@ import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
 
 const UNCHANGED_IMAGES_RETRY_DELAY_MS = 30 * 60 * 1000;
 const PREV_STATUS_REDIS_KEY = "latest_prev_status";
+const SECONDARY_PREV_STATUS_REDIS_KEY = "secondary_prev_status";
 
 function getPipelineMode(date: Date = new Date()): WeatherAgentMode {
   const { hour, minute } = getMumbaiNowParts(date);
@@ -103,6 +104,22 @@ export async function runPipeline(): Promise<void> {
       error,
     );
   }
+  let secondaryStatus: string | null = null;
+  try {
+    const savedSecondaryStatus = await Bun.redis.get(
+      SECONDARY_PREV_STATUS_REDIS_KEY,
+    );
+    secondaryStatus =
+      typeof savedSecondaryStatus === "string" &&
+      savedSecondaryStatus.trim().length > 0
+        ? savedSecondaryStatus
+        : null;
+  } catch (error) {
+    console.error(
+      "[pipeline] Failed to load secondary outlook. Continuing without it.",
+      error,
+    );
+  }
   console.log("[pipeline] Compiled rain context for agent.", { rain });
   await weatherAgent(
     savedImages,
@@ -110,6 +127,7 @@ export async function runPipeline(): Promise<void> {
     rain,
     localStation,
     prevStatus,
+    secondaryStatus,
     pipelineMode,
   );
 }
