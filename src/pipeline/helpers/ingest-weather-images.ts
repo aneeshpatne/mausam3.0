@@ -1,9 +1,13 @@
 import type { WeatherImage } from "../../data/radar/radar-image";
-import { getSourceImage } from "../../data/radar/get-source-image";
+import {
+  getSourceImage,
+  resolveWeatherImage,
+  type ResolvedWeatherImage,
+} from "../../data/radar/get-source-image";
 import { uploadWithLimit } from "../../storage/s3/helpers/upload-with-limit";
 
 interface IngestDependencies {
-  getImage: (image: WeatherImage) => Promise<Buffer>;
+  getImage: (image: ResolvedWeatherImage) => Promise<Buffer>;
   upload: (bucketName: string, image: Buffer) => Promise<void>;
 }
 
@@ -17,14 +21,15 @@ export async function ingestWeatherImages(
   dependencies: IngestDependencies = defaultDependencies,
 ): Promise<void> {
   for (const image of images) {
-    console.log(`[pipeline] Fetching weather image from ${image.url}.`);
     try {
-      const imageBuffer = await dependencies.getImage(image);
+      const resolvedImage = await resolveWeatherImage(image);
+      console.log(`[pipeline] Fetching weather image from ${resolvedImage.url}.`);
+      const imageBuffer = await dependencies.getImage(resolvedImage);
       await dependencies.upload(image.bucketName, imageBuffer);
     } catch (error) {
-      if (image.kind === "screenshot") {
+      if (!image.required) {
         console.error(
-          "[pipeline] Windy screenshot failed. Continuing with the latest stored image when available.",
+          `[pipeline] Optional weather source ${image.bucketName} failed. Continuing with the latest stored image when available.`,
           error,
         );
         continue;

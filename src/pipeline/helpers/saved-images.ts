@@ -7,6 +7,8 @@ const imageLabelsByBucket: Record<string, string> = {
   "radar-ppi-z": "PPI-Z radar",
   "radar-sri": "SRI rainfall estimate",
   satellite: "Windy rain accumulation",
+  gfs: "GFS model forecast for next 6 hours",
+  ecmwf: "ECMWF model forecast for next 6 hours",
 };
 
 export async function collectSavedImages(
@@ -19,7 +21,7 @@ export async function collectSavedImages(
         const latestKey = latestObject?.last?.Key;
 
         if (!latestKey) {
-          if (imageObj.kind === "direct") {
+          if (imageObj.required) {
             throw new Error(
               `Missing latest image for required weather source ${imageObj.bucketName}`,
             );
