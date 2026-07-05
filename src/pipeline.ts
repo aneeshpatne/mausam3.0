@@ -19,6 +19,7 @@ import { scheduleJob } from "./bull/scheduleJobs";
 import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
 
 const UNCHANGED_IMAGES_RETRY_DELAY_MS = 30 * 60 * 1000;
+const PREV_STATUS_REDIS_KEY = "latest_prev_status";
 
 function getPipelineMode(date: Date = new Date()): WeatherAgentMode {
   const { hour, minute } = getMumbaiNowParts(date);
@@ -89,12 +90,26 @@ export async function runPipeline(): Promise<void> {
   }
   const rain = [...rainLines, ...rainStatsLines].join("\n");
   const localStation = await getLocalWeatherSummary();
+  let prevStatus: string | null = null;
+  try {
+    const savedPrevStatus = await Bun.redis.get(PREV_STATUS_REDIS_KEY);
+    prevStatus =
+      typeof savedPrevStatus === "string" && savedPrevStatus.trim().length > 0
+        ? savedPrevStatus
+        : null;
+  } catch (error) {
+    console.error(
+      "[pipeline] Failed to load previous weather status. Continuing without it.",
+      error,
+    );
+  }
   console.log("[pipeline] Compiled rain context for agent.", { rain });
   await weatherAgent(
     savedImages,
     getMumbaiCurrentTimeText(),
     rain,
     localStation,
+    prevStatus,
     pipelineMode,
   );
 }

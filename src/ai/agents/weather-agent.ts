@@ -1,6 +1,7 @@
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { model } from "./model";
 import { alertTool } from "../tools/alert-tool";
+import { saveStatus } from "../tools/prev_status-tool";
 import { sendMailTool } from "../tools/send-mail";
 import { sendMessageTool } from "../tools/send-message";
 import { scheduleNextJobTool } from "../tools/schedule-next-job-tool";
@@ -19,12 +20,19 @@ export async function weatherAgent(
   currentTimeText: string,
   rainData: string,
   localStation: string,
+  prevStatus: string | null,
   mode: WeatherAgentMode = "default",
 ): Promise<void> {
   const imageOrderText = images.map((image) => image.label).join(", ");
   const agent = createAgent({
     model,
-    tools: [sendMailTool, sendMessageTool, alertTool, scheduleNextJobTool],
+    tools: [
+      saveStatus,
+      sendMailTool,
+      sendMessageTool,
+      alertTool,
+      scheduleNextJobTool,
+    ],
   });
 
   const systemMsg = new SystemMessage(`You analyze Mumbai MMR weather images.
@@ -39,6 +47,7 @@ ${
       ].join("\n")
     : "Default mode is active."
 }
+${prevStatus ? `Previous saved status for context: ${prevStatus}` : ""}
 
 Expected outcome:
 - decide the current Mumbai MMR rain severity from the images and supplemental text
@@ -50,15 +59,21 @@ Use only the provided images, rainMsg, localStationMsg, and user text.
 Treat rainMsg and localStationMsg as supplemental; they may contain zeros, missing, stale, or no-rain values.
 Do not assume rainfall totals, timing, wind, lightning, storm motion, station values, neighborhood impacts, or current rain unless the combined evidence supports it.
 If station/sensor values are notable, mention them in both email and Discord.
+The GFS and ECMWF model images are forecast guidance for the next 6 hours, not observed current rain.
+Use GFS and ECMWF to inform near-future risk and timing, but let radar and station observations override model guidance when they conflict.
+Mention agreement or disagreement between GFS and ECMWF when it materially changes confidence or timing.
+Do not describe model precipitation as currently happening unless radar, rainMsg, or localStationMsg also supports current rain.
 
 Tool workflow:
 1. Inspect all images together.
-2. Decide whether another report is useful later in the active window.
-3. If useful, call schedule_next_job exactly once with an appropriate delay; otherwise skip it.
-4. Call send_mail exactly once with a concise user-facing email that mentions the next-update decision.
-5. Call send_message exactly once with a longer, structured Discord update without emojis, using the same severity color.
-6. Call alert_tool exactly once with the final severity color and a banner message.
-7. After tool calls, do not add extra text.
+2. If previous saved status is present, use it only as compact prior context, not as ground truth.
+3. Call save-current-status exactly once with the new compressed machine summary for alert, echoes, and predictions.
+4. Decide whether another report is useful later in the active window.
+5. If useful, call schedule_next_job exactly once with an appropriate delay; otherwise skip it.
+6. Call send_mail exactly once with a concise user-facing email that mentions the next-update decision.
+7. Call send_message exactly once with a longer, structured Discord update without emojis, using the same severity color.
+8. Call alert_tool exactly once with the final severity color and a banner message.
+9. After tool calls, do not add extra text.
 
 Severity guidance:
 - green: quiet or low-risk conditions
