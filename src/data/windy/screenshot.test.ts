@@ -4,11 +4,13 @@ import { captureWindyScreenshot } from "./screenshot";
 function makeBrowser(options: { screenshotError?: Error } = {}) {
   let closed = false;
   const calls: string[] = [];
+  const gotoUrls: string[] = [];
   const browser = {
     async newPage() {
       return {
-        async goto() {
+        async goto(url: string) {
           calls.push("goto");
+          gotoUrls.push(url);
         },
         async waitForSelector() {
           calls.push("canvas");
@@ -28,7 +30,7 @@ function makeBrowser(options: { screenshotError?: Error } = {}) {
     },
   };
 
-  return { browser, calls, wasClosed: () => closed };
+  return { browser, calls, gotoUrls, wasClosed: () => closed };
 }
 
 test("captures the rendered Windy page and closes the browser", async () => {
@@ -40,6 +42,22 @@ test("captures the rendered Windy page and closes the browser", async () => {
 
   expect(result).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
   expect(mock.calls).toEqual(["goto", "canvas", "content", "screenshot"]);
+  expect(mock.gotoUrls).toEqual(["https://example.com/windy"]);
+  expect(mock.wasClosed()).toBe(true);
+});
+
+test("captures a Tropical Tidbits model page with the model wait path", async () => {
+  const mock = makeBrowser();
+  const result = await captureWindyScreenshot(
+    "https://www.example.com/analysis/models/?model=gfs&region=india&pkg=mslp_pcpn",
+    async () => mock.browser,
+  );
+
+  expect(result).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
+  expect(mock.calls).toEqual(["goto", "canvas", "content", "screenshot"]);
+  expect(mock.gotoUrls).toEqual([
+    "https://www.example.com/analysis/models/?model=gfs&region=india&pkg=mslp_pcpn",
+  ]);
   expect(mock.wasClosed()).toBe(true);
 });
 

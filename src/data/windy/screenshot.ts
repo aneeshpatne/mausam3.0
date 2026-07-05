@@ -3,13 +3,21 @@ import puppeteer from "puppeteer";
 export const WINDY_SCREENSHOT_WIDTH = 1280;
 export const WINDY_SCREENSHOT_HEIGHT = 720;
 const WINDY_RENDER_TIMEOUT_MS = 45_000;
+const TROPICAL_TIDBITS_RENDER_TIMEOUT_MS = 45_000;
 
 interface WindyPage {
-  goto(url: string, options: { timeout: number; waitUntil: "domcontentloaded" }): Promise<unknown>;
-  waitForSelector(selector: string, options: { timeout: number; visible: boolean }): Promise<unknown>;
+  goto(url: string, options: {
+    timeout: number;
+    waitUntil: "domcontentloaded" | "networkidle2";
+  }): Promise<unknown>;
+  waitForSelector(
+    selector: string,
+    options: { timeout: number; visible: boolean },
+  ): Promise<unknown>;
   waitForFunction(
-    pageFunction: () => boolean,
+    pageFunction: (...args: unknown[]) => boolean,
     options: { timeout: number },
+    ...args: unknown[]
   ): Promise<unknown>;
   screenshot(options: {
     fullPage: false;
@@ -44,27 +52,11 @@ export async function captureWindyScreenshot(
 
   try {
     const page = await browser.newPage();
-    await page.goto(url, {
-      timeout: WINDY_RENDER_TIMEOUT_MS,
-      waitUntil: "domcontentloaded",
-    });
-    await page.waitForSelector("canvas", {
-      timeout: WINDY_RENDER_TIMEOUT_MS,
-      visible: true,
-    });
-    await page.waitForFunction(
-      () => {
-        const text = (
-          globalThis as unknown as { document: { body: { innerText: string } } }
-        ).document.body.innerText;
-        return (
-          text.includes("Duration of the accumulation:") &&
-          text.includes("Mumbai") &&
-          text.includes("mm")
-        );
-      },
-      { timeout: WINDY_RENDER_TIMEOUT_MS },
-    );
+    if (isTropicalTidbitsUrl(url)) {
+      await waitForTropicalTidbitsModel(page, url);
+    } else {
+      await waitForWindyRainAccumulation(page, url);
+    }
 
     const screenshot = await page.screenshot({
       type: "jpeg",
@@ -75,4 +67,84 @@ export async function captureWindyScreenshot(
   } finally {
     await browser.close();
   }
+}
+
+function isTropicalTidbitsUrl(url: string): boolean {
+  return new URL(url).hostname.endsWith("example.com");
+}
+
+async function waitForWindyRainAccumulation(
+  page: WindyPage,
+  url: string,
+): Promise<void> {
+  await page.goto(url, {
+    timeout: WINDY_RENDER_TIMEOUT_MS,
+    waitUntil: "domcontentloaded",
+  });
+  await page.waitForSelector("canvas", {
+    timeout: WINDY_RENDER_TIMEOUT_MS,
+    visible: true,
+  });
+  await page.waitForFunction(
+    () => {
+      const text = (
+        globalThis as unknown as { document: { body: { innerText: string } } }
+      ).document.body.innerText;
+      return (
+        text.includes("Duration of the accumulation:") &&
+        text.includes("Mumbai") &&
+        text.includes("mm")
+      );
+    },
+    { timeout: WINDY_RENDER_TIMEOUT_MS },
+  );
+}
+
+async function waitForTropicalTidbitsModel(
+  page: WindyPage,
+  url: string,
+): Promise<void> {
+  await page.goto(url, {
+    timeout: TROPICAL_TIDBITS_RENDER_TIMEOUT_MS,
+    waitUntil: "networkidle2",
+  });
+  await page.waitForSelector("img", {
+    timeout: TROPICAL_TIDBITS_RENDER_TIMEOUT_MS,
+    visible: true,
+  });
+  await page.waitForFunction(
+    (bucketName) => {
+      interface PageImage {
+        complete: boolean;
+        currentSrc?: string;
+        naturalHeight: number;
+        naturalWidth: number;
+        src?: string;
+      }
+
+      const document = (
+        globalThis as unknown as {
+          document: {
+            images: Iterable<PageImage> | ArrayLike<PageImage>;
+            body: { innerText: string };
+          };
+        }
+      ).document;
+      const text = document.body.innerText.toLowerCase();
+      const hasModelText = text.includes("gfs") || text.includes("forecast");
+      const hasLoadedMap = Array.from(document.images).some((image) => {
+        const source = image.currentSrc || image.src || "";
+        return (
+          image.complete &&
+          image.naturalWidth > 400 &&
+          image.naturalHeight > 250 &&
+          source.includes(String(bucketName))
+        );
+      });
+
+      return hasModelText && hasLoadedMap;
+    },
+    { timeout: TROPICAL_TIDBITS_RENDER_TIMEOUT_MS },
+    "gfs",
+  );
 }
