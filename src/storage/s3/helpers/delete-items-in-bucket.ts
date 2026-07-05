@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  ListObjectsV2Command,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
 import { client } from "../client/s3";
@@ -61,5 +62,32 @@ export async function deleteObjectsFromBucket(
     } else {
       throw e;
     }
+  }
+}
+
+export async function emptyBucket(bucket: string): Promise<void> {
+  const { Contents = [] } = await client.send(
+    new ListObjectsV2Command({
+      Bucket: bucket,
+    }),
+  );
+  const objects = Contents.flatMap(({ Key }) => (Key ? [{ Key }] : []));
+
+  if (objects.length === 0) return;
+
+  const result = await client.send(
+    new DeleteObjectsCommand({
+      Bucket: bucket,
+      Delete: {
+        Objects: objects,
+        Quiet: true,
+      },
+    }),
+  );
+
+  if (result.Errors?.length) {
+    throw new Error(
+      `Failed to delete objects: ${JSON.stringify(result.Errors)}`,
+    );
   }
 }
