@@ -58,12 +58,25 @@ export async function runPipeline(): Promise<void> {
   console.log("[pipeline] Images changed. Proceeding with AI summarization.");
   const savedImages = await collectSavedImages();
 
-  const rainLines = await Promise.all(
+  const rainLineResults = await Promise.allSettled(
     weatherStations.map(async (station) => {
       const rain = await getRain(station.station_id);
       return `For ${station.location} 15m: ${rain.last15Minutes}, 1h: ${rain.last1Hour}, 24h: ${rain.last24Hours}`;
     }),
   );
+  const rainLines = rainLineResults.flatMap((result, index) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+
+    const station = weatherStations[index];
+    const stationLabel = station?.location ?? `station index ${index}`;
+    console.error(
+      `[pipeline] Rain fetch failed for ${stationLabel}. Continuing without this station.`,
+      result.reason,
+    );
+    return [];
+  });
   let rainStatsLines: string[] = [];
   try {
     const rainStats = await scrapeRainStats();
