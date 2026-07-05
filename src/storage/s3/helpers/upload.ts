@@ -1,9 +1,11 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { client } from "../client/s3";
 
-export async function uploadToBucket(bucketName: string, imageBuffer: Buffer) {
-  const date = new Date();
-  const key = bucketName + "-" + date.toISOString() + ".jpeg";
+export async function uploadToBucketWithKey(
+  bucketName: string,
+  key: string,
+  imageBuffer: Buffer,
+): Promise<void> {
   await client.send(
     new PutObjectCommand({
       Bucket: bucketName,
