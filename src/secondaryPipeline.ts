@@ -8,7 +8,7 @@ import { getMumbaiCurrentTimeText } from "./pipeline/time/mumbai-time";
 
 const BUCKET_NAME = "model-images";
 const SECONDARY_PREV_STATUS_REDIS_KEY = "secondary_prev_status";
-const FRAMES = [8, 24, 40] as const;
+const FRAMES = [8, 16, 24, 32, 40] as const;
 
 interface ModelConfig {
   name: string;
@@ -72,3 +72,5 @@ export async function runSecondaryPipeline() {
 
   await secondaryAgent(savedImages, getMumbaiCurrentTimeText(), prevStatus);
 }
+
+// await runSecondaryPipeline();
