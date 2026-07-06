@@ -16,7 +16,7 @@ export const saveSecondaryStatus = tool(
   {
     name: "save-secondary-status",
     description:
-      'Store the previous secondary-agent forecast state for later LLM comparison. Call this exactly once before send_mail. Output is machine-only: compress aggressively, prefer fragments over sentences, omit filler/articles, and optimize for minimum tokens rather than human readability. Example target shape: {"alert":"yellow","summary":"GFS/ECMWF agree on mod rain Thu PM; divergence Sat; dry trend by Sun"}.',
+      'Store the secondary-agent forecast state for later LLM comparison and weather-agent context. Call this exactly once before send_mail. Output is machine-readable and may be as information-rich as needed, but include only forecast-relevant details supported by the provided images. Do not optimize for minimum tokens. Example target shape: {"alert":"yellow","summary":"Jul 9 afternoon: GFS/ECMWF both show moderate rain near Mumbai MMR, higher confidence; Jul 11: ECMWF wetter than GFS, lower confidence; trend eases by Jul 12."}.',
     schema: z.object({
       alert: alertStateSchema.describe(
         "Peak alert state across the 3 frames. Must be exactly one of: green, yellow, orange, red.",
@@ -26,7 +26,7 @@ export const saveSecondaryStatus = tool(
         .trim()
         .min(1)
         .describe(
-          "Ultra-dense machine summary of the GFS/ECMWF medium-range outlook. One compact block, no prose. Format: 3 semicolon-separated frame entries, each starting with the exact IST date+time window (e.g. 'Wed Jul 9 12:00-18:00 IST'), immediately followed by dense tokens covering, in this order: (1) rainfall intensity token (dry/traces/light/mod/hvy/vhvy/extreme + coverage e.g. iso/sct/widespread), (2) primary timing sub-window if sharper than the frame window (e.g. 'peak 15-18h'), (3) GFS vs ECMWF agreement tag ('m=X' matched/'m!=X' divergence with which side is wetter or drier, e.g. 'm!=ECMWF wet'), (4) MSLP/synoptic feature if present (low/trough/ridge/cyclone/monsoon-shear), (5) wind note only if material (e.g. 'SW 25g40'). Join the 3 entries with '; '. End with a trend token: 'trnd: wet->dry' or 'trnd: steady' or 'trnd: dry->wet'. Example target: 'Wed Jul 9 12:00-18:00 IST hvy widespread peak 15-18h m=ECMWF,GFS low over N Arabian Sea SW 25g40; Thu Jul 10 06:00-12:00 IST light sct m!=GFS wetter trnd: wet->dry; Fri Jul 11 18:00-00:00 IST dry m=X ridge'. No articles, no filler, no verbs.",
+          "Machine-readable GFS/ECMWF medium-range outlook for Mumbai MMR. No length cap: include all relevant supported details needed for later comparison and for the primary weather agent, while excluding irrelevant filler. Cover Day 1 through Day 5 with exact IST date/time window, rainfall intensity and coverage, peak timing when visible, GFS signal, ECMWF signal, model agreement or disagreement, confidence, tentative alert color when supported, material synoptic/MSLP features, material wind signals, and overall trend. Plain structured prose, bullets, or compact labeled sections are all acceptable.",
         ),
     }),
   },

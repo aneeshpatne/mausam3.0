@@ -51,7 +51,7 @@ ${
 ${prevStatus ? `Previous saved status for context: ${prevStatus}` : ""}
 ${
   secondaryStatus
-    ? `Future outlook from the secondary model-analysis agent (medium-range GFS/ECMWF forecast, next 1-5 days, exact IST dates): ${secondaryStatus}`
+    ? "Full future outlook from the secondary model-analysis agent is provided in a separate message after rainMsg and localStationMsg."
     : ""
 }
 
@@ -69,7 +69,7 @@ The GFS and ECMWF model images are forecast guidance for the next 6 hours, not o
 Use GFS and ECMWF to inform near-future risk and timing, but let radar and station observations override model guidance when they conflict.
 Mention agreement or disagreement between GFS and ECMWF when it materially changes confidence or timing.
 Do not describe model precipitation as currently happening unless radar, rainMsg, or localStationMsg also supports current rain.
-The future outlook (when present) is a medium-range days 1-5 context only, not a current or next-6-hours signal. It must never override current radar, rainMsg, or localStationMsg observations. You may reference it briefly in email or Discord only when it changes near-term confidence or framing.
+The future outlook (when present) is a medium-range days 1-5 context only, not a current or next-6-hours signal. It must never override current radar, rainMsg, or localStationMsg observations. The full saved secondary-agent data may be detailed; use only relevant parts when they change near-term confidence or framing, and ignore irrelevant or unsupported details.
 
 Tool workflow:
 1. Inspect all images together.
@@ -124,7 +124,18 @@ The images are provided in this order: ${imageOrderText}.`);
   });
   const rainMsg = new HumanMessage(rainData);
   const localStationMsg = new HumanMessage(localStation);
-  const messages = [systemMsg, humanMsg, rainMsg, localStationMsg];
+  const secondaryStatusMsg = secondaryStatus
+    ? new HumanMessage(
+        `Full saved secondary-agent medium-range GFS/ECMWF context:\n${secondaryStatus}`,
+      )
+    : null;
+  const messages = [
+    systemMsg,
+    humanMsg,
+    rainMsg,
+    localStationMsg,
+    ...(secondaryStatusMsg ? [secondaryStatusMsg] : []),
+  ];
 
   const response = await agent.invoke({ messages });
 

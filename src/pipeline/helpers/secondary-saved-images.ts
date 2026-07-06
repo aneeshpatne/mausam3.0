@@ -11,10 +11,14 @@ interface SecondaryImageTarget {
 
 const TARGETS: SecondaryImageTarget[] = [
   { model: "gfs", frame: 8, label: "GFS model forecast for +24h" },
+  { model: "gfs", frame: 16, label: "GFS model forecast for +48h" },
   { model: "gfs", frame: 24, label: "GFS model forecast for +72h" },
+  { model: "gfs", frame: 32, label: "GFS model forecast for +96h" },
   { model: "gfs", frame: 40, label: "GFS model forecast for +120h" },
   { model: "ecmwf", frame: 8, label: "ECMWF model forecast for +24h" },
+  { model: "ecmwf", frame: 16, label: "ECMWF model forecast for +48h" },
   { model: "ecmwf", frame: 24, label: "ECMWF model forecast for +72h" },
+  { model: "ecmwf", frame: 32, label: "ECMWF model forecast for +96h" },
   { model: "ecmwf", frame: 40, label: "ECMWF model forecast for +120h" },
 ];
 
