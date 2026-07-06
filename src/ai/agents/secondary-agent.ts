@@ -2,7 +2,7 @@ import type { WeatherAgentImageInput } from "./weather-agent";
 import { createAgent, HumanMessage, SystemMessage } from "langchain";
 import { secondaryModel } from "./model";
 import { saveSecondaryStatus } from "../tools/secondary-save-tool";
-import { sendMailTool } from "../tools/send-mail";
+import { sendMailToolSecondary } from "../tools/secondary-send-mail";
 
 export async function secondaryAgent(
   images: WeatherAgentImageInput[],
@@ -12,7 +12,7 @@ export async function secondaryAgent(
   const imageOrderText = images.map((image) => image.label).join(", ");
   const agent = createAgent({
     model: secondaryModel,
-    tools: [saveSecondaryStatus, sendMailTool],
+    tools: [saveSecondaryStatus, sendMailToolSecondary],
   });
 
   const systemMsg =
@@ -27,7 +27,6 @@ Expected outcome:
 - call save-secondary-status exactly once with a compressed machine summary
 - call send_mail exactly once with a concise user-facing email that frames the next few days
 - stop after the required tool calls without returning normal assistant text
-- do not schedule or request any follow-up
 
 Evidence rules:
 Use only the provided images and current time text.
@@ -55,7 +54,6 @@ Email:
 - include exact timing as calendar dates and time ranges in IST (e.g. 'Mon Jul 7 12:00-18:00 IST'), never use '+24h', '+72h', or '+120h'
 - may use AM/PM only when it makes timing clearer
 - mention model agreement or disagreement when it changes confidence
-- do not mention any follow-up report or next scheduled update
 
 The images are provided in this order: ${imageOrderText}.`);
 
