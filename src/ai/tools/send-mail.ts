@@ -44,7 +44,7 @@ function normalizeMailContent(mailContent: string): string {
     .join("<br />");
 }
 
-function buildMailTemplate(
+export function buildMailTemplate(
   subject: string,
   alertColor: z.infer<typeof alertColorSchema>,
   mailContent: string,
