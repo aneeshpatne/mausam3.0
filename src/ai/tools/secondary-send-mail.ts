@@ -7,7 +7,7 @@ import { buildMailTemplate } from "./send-mail";
 const alertColorSchema = z.enum(["green", "yellow", "orange", "red"]);
 
 const sendMailSecondaryDescription =
-  "Prepare one concise user-facing weather mail after saving the internal summary. The content is wrapped in an HTML email template with alert color header and a Powered by Mausam3.0 footer.";
+  "Prepare one formatted layman medium-range weather mail after saving the internal summary. The email should explain the next five dated forecast windows in simple language, with a clear alert, simple idea, likely affected areas when supported, confidence, verdicts, and tentative day-wise alerts when useful. The content is wrapped in an HTML email template with alert color header and a Powered by Mausam3.0 footer.";
 
 const sendMailSecondarySchema = z.object({
   alert_color: alertColorSchema.describe(
@@ -23,7 +23,7 @@ const sendMailSecondarySchema = z.object({
     .string()
     .trim()
     .describe(
-      "Weather email body. It may be mildly technical when useful and may use HTML-supported tags for structure or emphasis. Do not explicitly mention the current local time unless essential. Use it only to frame a future-facing forecast. Be explicit about future timing whenever the imagery supports it, preferring a specific future time or a narrow future window such as by around 1:00, between 1:00 and 3:00, this evening, or for the rest of the day, instead of vague phrases like later or soon. Use AM/PM only when it makes the timing clearer. Include a short explanation of why rain or dry weather is expected.",
+      "Formatted HTML-supported medium-range weather email body in layman language. Take enough space to explain clearly, but include only relevant forecast details supported by the images. Required structure: short opening with overall alert, simple idea, and likely affected broad areas if supported; then five dated sections or list items headed by explicit calendar dates/time windows in IST, not labels like Day 1 or Day 2. For each date, include only the practical verdict, confidence, likely affected broad areas if supported, and tentative alert color when supported. Do not explicitly mention GFS, ECMWF, model names, model agreement, model disagreement, MSLP/synoptic jargon, or model minutiae in the email; save those details for Discord. Use clean tags such as <p>, <h3>, <ul>, <li>, <b>, and <br />. Do not use vague timing like later or soon when a concrete window is available. Use AM/PM only when it makes timing clearer. Do not add unsupported neighborhood-specific claims or irrelevant filler.",
     ),
 });
 
