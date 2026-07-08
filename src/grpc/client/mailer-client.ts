@@ -5,11 +5,18 @@ import { join } from "node:path";
 const MAILER_PROTO_PATH = join(import.meta.dir, "../proto/sandesh.proto");
 const DEFAULT_MAILER_ADDRESS = process.env.MAILER_GRPC_ADDRESS ?? "localhost:50055";
 
+export interface EmailAttachment {
+  filename: string;
+  content_type: string;
+  data: Buffer | Uint8Array;
+}
+
 export interface SendEmailRequest {
   app_id: string;
   to: string[];
   subject: string;
   body: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResponse {

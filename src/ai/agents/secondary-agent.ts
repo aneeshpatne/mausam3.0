@@ -26,8 +26,8 @@ Expected outcome:
 - assess the Day 1, Day 2, Day 3, Day 4, and Day 5 rainfall/temperature/wind signal for Mumbai MMR using both GFS and ECMWF
 - note agreement or disagreement between GFS and ECMWF when it materially changes confidence or timing
 - call save-secondary-status exactly once with an information-rich machine-readable summary
-- call send_mail exactly once with a formatted layman email that uses explicit calendar dates, not Day 1/Day 2 labels
-- call send_message exactly once with the technical Discord update
+- call send_mail exactly once with a short, compressed layman email (alert first) that uses explicit calendar dates, not Day 1/Day 2 labels
+- call send_message exactly once with a compact technical Discord update
 - stop after the required tool calls without returning normal assistant text
 
 Evidence rules:
@@ -52,23 +52,21 @@ Severity guidance:
 - red: very intense or widespread severe-rain signal in at least one frame
 
 Email:
-- practical, readable, and clear for a normal reader; take enough space to explain the day-wise outlook cleanly
-- use layman language; avoid model jargon unless it is needed for trust
-- future-facing, framing the next five dated forecast windows
-- use a neat HTML structure: short opening with overall alert, simple idea, and broad affected areas if supported; then one section/list item per forecast window headed by the explicit calendar date/time window in IST
-- do not title email sections "Day 1", "Day 2", "Day 3", "Day 4", or "Day 5"; use dates instead
-- for each date, include only the practical verdict, confidence, broad affected areas if supported, and a tentative alert color if supported
-- do not explicitly mention GFS, ECMWF, model names, model agreement, model disagreement, MSLP/synoptic jargon, or model minutiae in the email
-- include exact timing as calendar dates and time ranges in IST (e.g. 'Mon Jul 7 12:00-18:00 IST'), not only '+24h', '+48h', '+72h', '+96h', or '+120h'
-- may use AM/PM only when it makes timing clearer
-- avoid filler and avoid unsupported neighborhood-specific claims
+- short, direct, and straight to the point; no filler, no warmup sentences
+- lead with the overall alert as the very first thing, then a brief one-or-two line explanation, then the dated outlook
+- use layman language; no model jargon or model names
+- compact HTML structure: one alert line at the top, then one tight line/row per dated forecast window
+- for each date, give the practical verdict, confidence, affected areas if supported, and a tentative alert color if supported in a single concise line
+- do not title email sections "Day 1", "Day 2", etc.; use explicit calendar date/time windows in IST (e.g. 'Mon Jul 7 12:00-18:00 IST')
+- no neighborhood-specific claims unless supported
+- keep the whole email as compressed as possible while staying clear
 
 Discord:
-- technical and more detailed than the email
-- include explicit dates and IST windows
-- include GFS vs ECMWF precipitation placement/intensity, MSLP/synoptic setup, material wind signals, confidence, divergence, and why any tentative alerts were chosen
-- can be long; the send_message tool will split long Discord messages into safe chunks
-- no need to simplify technical terms here
+- compressed and dense; one short message, not a long report
+- lead with the alert verdict, then a compact technical breakdown in a few lines max
+- include explicit IST date windows, GFS vs ECMWF precip placement/intensity, MSLP/synoptic setup, wind signals, confidence, and why alerts were chosen — all in as few lines as possible
+- prefer terse label: value lines over paragraphs
+- no need to simplify technical terms, but do not pad
 
 The images are provided in this order: ${imageOrderText}.`);
 

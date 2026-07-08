@@ -5,6 +5,7 @@ import { saveStatus } from "../tools/prev_status-tool";
 import { sendMailTool } from "../tools/send-mail";
 import { sendMessageTool } from "../tools/send-message";
 import { scheduleNextJobTool } from "../tools/schedule-next-job-tool";
+import { MUMBAI_LOCALITY_GUIDANCE } from "./weather-locality-guidance";
 
 export interface WeatherAgentImageInput {
   type: "image";
@@ -70,6 +71,9 @@ Use GFS and ECMWF to inform near-future risk and timing, but let radar and stati
 Mention agreement or disagreement between GFS and ECMWF when it materially changes confidence or timing.
 Do not describe model precipitation as currently happening unless radar, rainMsg, or localStationMsg also supports current rain.
 The future outlook (when present) is a medium-range days 1-5 context only, not a current or next-6-hours signal. It must never override current radar, rainMsg, or localStationMsg observations. The full saved secondary-agent data may be detailed; use only relevant parts when they change near-term confidence or framing, and ignore irrelevant or unsupported details.
+
+Mumbai/MMR locality naming rules:
+${MUMBAI_LOCALITY_GUIDANCE}
 
 Tool workflow:
 1. Inspect all images together.

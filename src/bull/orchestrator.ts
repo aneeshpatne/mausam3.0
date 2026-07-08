@@ -40,18 +40,18 @@ try {
   await q.obliterate({ force: true });
   console.log(`[orchestrator] Queue ${QUEUE_NAME} obliterated on startup.`);
 
-  await q.add(
-    STARTUP_JOB_NAME,
-    {},
-    {
-      jobId: `${STARTUP_JOB_NAME}-${Date.now()}`,
-      removeOnComplete: 10,
-      removeOnFail: 50,
-    },
-  );
-  console.log(
-    `[orchestrator] Enqueued ${STARTUP_JOB_NAME} for immediate execution.`,
-  );
+  // await q.add(
+  //   STARTUP_JOB_NAME,
+  //   {},
+  //   {
+  //     jobId: `${STARTUP_JOB_NAME}-${Date.now()}`,
+  //     removeOnComplete: 10,
+  //     removeOnFail: 50,
+  //   },
+  // );
+  // console.log(
+  //   `[orchestrator] Enqueued ${STARTUP_JOB_NAME} for immediate execution.`,
+  // );
 
   await q.add(
     DAILY_JOB_NAME,

@@ -17,6 +17,7 @@ export {
 
 export type {
   CreateMailerClientOptions,
+  EmailAttachment,
   SendEmailRequest,
   SendEmailResponse,
   SendTelegramRequest,

@@ -73,4 +73,4 @@ export async function runSecondaryPipeline() {
   await secondaryAgent(savedImages, getMumbaiCurrentTimeText(), prevStatus);
 }
 
-await runSecondaryPipeline();
+// await runSecondaryPipeline();

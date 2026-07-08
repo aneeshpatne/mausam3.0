@@ -15,7 +15,7 @@ const sendMessageSchema = z.object({
     .trim()
     .max(900)
     .describe(
-      "Discord message body with Markdown support. Write 3-6 short lines, include weather-appropriate emojis, and keep the update readable. Do not explicitly mention the current local time unless essential. Use explicit future-facing timing whenever the imagery supports it, preferring a specific future time or a narrow future window such as by around 1:00, between 1:00 and 3:00, this evening, or for the rest of the day, instead of vague phrasing like later or soon. Use AM/PM only when it makes the timing clearer, and include a short explanation of why rain or dry weather is expected.",
+      "Discord message body with Markdown support. Write 3-6 short lines, include weather-appropriate emojis, and keep the update readable. Do not explicitly mention the current local time unless essential. Use explicit future-facing timing whenever the imagery supports it, preferring a specific future time or a narrow future window such as by around 1:00, between 1:00 and 3:00, this evening, or for the rest of the day, instead of vague phrasing like later or soon. Use best-effort named Mumbai/MMR localities for likely affected areas whenever possible, chosen from the evidence and map context rather than a fixed example list. Avoid vague area-only phrases like western pockets, coastal belt, north side, east side, south side, or interior pockets unless they follow named localities as secondary context. Use AM/PM only when it makes the timing clearer, and include a short explanation of why rain or dry weather is expected.",
     ),
 });
 
