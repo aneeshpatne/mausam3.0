@@ -8,7 +8,10 @@ const TROPICAL_TIDBITS_REQUEST_HEADERS = {
   Referer: "https://www.example.com/analysis/models/",
 };
 
-type FetchLike = typeof fetch;
+type FetchLike = (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => ReturnType<typeof fetch>;
 type TropicalTidbitsModel = "gfs" | "ecmwf";
 
 interface TropicalTidbitsModelConfig {
@@ -64,6 +67,7 @@ function getLatestEligibleRunId(now: Date): string {
       index -= 1
     ) {
       const hour = TROPICAL_TIDBITS_RUN_HOURS[index];
+      if (hour === undefined) continue;
       const run = new Date(baseDate.getTime());
       run.setUTCHours(hour, 0, 0, 0);
 
