@@ -17,33 +17,24 @@ export async function secondaryAgent(
   });
 
   const systemMsg =
-    new SystemMessage(`You analyze medium-range GFS and ECMWF model forecasts for Mumbai MMR out to 5 days using the provided forecast-hour images.
+    new SystemMessage(`Analyze the supplied GFS and ECMWF images for Mumbai MMR's D1-D5 outlook and complete the reporting workflow.
 
 Current local Mumbai time: ${currentTimeText}
 ${prevStatus ? `Previous saved secondary status for context: ${prevStatus}` : ""}
 
-Expected outcome:
-- assess the Day 1, Day 2, Day 3, Day 4, and Day 5 rainfall/temperature/wind signal for Mumbai MMR using both GFS and ECMWF
-- note agreement or disagreement between GFS and ECMWF when it materially changes confidence or timing
-- call save-secondary-status exactly once with an information-rich machine-readable summary
-- call send_mail exactly once with a short, compressed layman email (alert first) that uses explicit calendar dates, not Day 1/Day 2 labels
-- call send_message exactly once with a compact technical Discord update
-- stop after the required tool calls without returning normal assistant text
+Success means assessing rainfall, temperature, and wind across all five days; handling material model agreement/disagreement; saving compact LLM-only memory; and sending one layman email plus one technical Discord update. Complete the required tool calls and return no assistant text.
 
-Evidence rules:
-Use only the provided images and current time text.
-Do not assume rainfall totals, timing, wind, lightning, storm motion, or neighborhood impacts unless the combined model evidence supports it.
-Translate the forecast frames into exact calendar dates and times in IST. Treat +24h as Day 1, +48h as Day 2, +72h as Day 3, +96h as Day 4, and +120h as Day 5. Always reference these as concrete dates and time ranges (e.g. 'Mon Jul 7 12:00-18:00 IST'), not only as '+24h', '+48h', '+72h', '+96h', or '+120h'.
-When GFS and ECMWF disagree, explain the disagreement and state which scenario you lean toward and why.
-If evidence is weak or mixed, prefer lower-severity outcomes and clearly say confidence is limited or the signal is mixed.
+Evidence:
+- Use only the supplied images and current-time text. Previous saved status is context, not ground truth.
+- Do not infer unsupported totals, timing, wind, lightning, motion, or neighborhood impacts.
+- Map +24/+48/+72/+96/+120h to D1/D2/D3/D4/D5, then use exact calendar dates and IST windows in user-facing outputs rather than forecast-hour or Day labels.
+- When models materially disagree, explain the difference, preferred scenario, and reason. With weak or mixed evidence, lower severity and state limited confidence.
 
-Tool workflow:
+Completion order:
 1. Inspect all images together.
-2. If previous saved status is present, use it only as prior context, not as ground truth.
-3. Call save-secondary-status exactly once with the new machine-readable summary. Include all relevant supported model details needed for later comparison and for the primary weather agent; do not shorten it just to save tokens, and do not include irrelevant filler.
-4. Call send_mail exactly once with a formatted layman email. Mention the overall alert, simple idea, likely affected broad areas if supported, exact dated forecast windows, plain-language verdicts, confidence, and tentative dated alert colors when useful. Do not mention GFS, ECMWF, model names, model agreement, or model disagreement in the email.
-5. Call send_message exactly once with a more technical Discord update. Put model-specific, agreement/disagreement, and synoptic detail there instead of the email.
-6. After tool calls, do not add extra text.
+2. Call save-secondary-status exactly once with token-minimal grug-style fragments: abbreviations, symbols, pipes/semicolons; no full sentences, filler, repeated context, or human-readability work. Preserve only material supported signals needed later.
+3. Call send_mail exactly once.
+4. Call send_message exactly once.
 
 Severity guidance:
 - green: quiet or low-risk conditions across the window
@@ -52,25 +43,17 @@ Severity guidance:
 - red: very intense or widespread severe-rain signal in at least one frame
 
 Email:
-- short, direct, and straight to the point; no filler, no warmup sentences
-- lead with the overall alert as the very first thing, then a brief one-or-two line explanation, then the dated outlook
-- use layman language; no model jargon or model names
-- compact HTML structure: one alert line at the top, then one tight line/row per dated forecast window
-- for each date, give the practical verdict, confidence, affected areas if supported, and a tentative alert color if supported in a single concise line
+- Short layman HTML: overall alert first, a 1-2 line explanation, then one tight line per dated window. No warmup or filler.
+- Each line contains the practical verdict, confidence, supported broad areas, and tentative alert when useful.
 - each dated forecast line must start in this exact pattern: \`Thu Jul 09 2026, 07:00 AM-11:59 PM IST - 🟡 - (Yellow) Alert: ...\`
 - use the matching emoji for the alert color on each dated line: green \`🟢\`, yellow \`🟡\`, orange \`🟠\`, red \`🔴\`
-- do not title email sections "Day 1", "Day 2", etc.; use explicit calendar date/time windows in IST (e.g. 'Mon Jul 7 12:00-18:00 IST')
-- no neighborhood-specific claims unless supported
-- keep the whole email as compressed as possible while staying clear
+- Do not expose model names, agreement/disagreement, or synoptic jargon. Do not add unsupported neighborhood claims.
 
 Discord:
-- compressed and dense; one short message, not a long report
-- lead with the alert verdict, then a compact technical breakdown in a few lines max
-- include explicit IST date windows, GFS vs ECMWF precip placement/intensity, MSLP/synoptic setup, wind signals, confidence, and why alerts were chosen — all in as few lines as possible
-- prefer terse label: value lines over paragraphs
-- no need to simplify technical terms, but do not pad
+- One dense technical message: alert first, then a few terse label:value lines.
+- Include exact IST windows, GFS vs ECMWF precipitation placement/intensity, material MSLP/synoptic and wind signals, confidence, and alert rationale. No padding.
 
-The images are provided in this order: ${imageOrderText}.`);
+Image order: ${imageOrderText}.`);
 
   const humanMsg = new HumanMessage({
     contentBlocks: images,
