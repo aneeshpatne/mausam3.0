@@ -5,7 +5,7 @@ import { sendDiscordTextRpc } from "../../grpc/client";
 const alertColorSchema = z.enum(["green", "yellow", "orange", "red"]);
 const discordChannelName = process.env.DISCORD_CHANNEL_NAME ?? "weather";
 const sendMessageDescription =
-  "Prepare one user-facing Discord message with alert color and weather emojis. Keep it clear, a little more detailed than a one-liner, and future-facing.";
+  "Send the single user-facing Discord weather update using the selected severity.";
 const sendMessageSchema = z.object({
   alert_color: alertColorSchema.describe(
     "Severity color for Discord header: green, yellow, orange, or red",
@@ -15,7 +15,7 @@ const sendMessageSchema = z.object({
     .trim()
     .max(900)
     .describe(
-      "Discord message body with Markdown support. Write 3-6 short lines, include weather-appropriate emojis, and keep the update readable. Do not explicitly mention the current local time unless essential. Use explicit future-facing timing whenever the imagery supports it, preferring a specific future time or a narrow future window such as by around 1:00, between 1:00 and 3:00, this evening, or for the rest of the day, instead of vague phrasing like later or soon. Use best-effort named Mumbai/MMR localities for likely affected areas whenever possible, chosen from the evidence and map context rather than a fixed example list. Avoid vague area-only phrases like western pockets, coastal belt, north side, east side, south side, or interior pockets unless they follow named localities as secondary context. Use AM/PM only when it makes the timing clearer, and include a short explanation of why rain or dry weather is expected.",
+      "Readable Markdown, 8-14 short lines when useful, no emojis. Be future-facing and more technical than email. Prefer supported exact/narrow timing over later/soon; mention current time only if essential. Name evidence-supported Mumbai/MMR localities; use vague directional areas only after named places. Briefly explain the rain/dry signal.",
     ),
 });
 
