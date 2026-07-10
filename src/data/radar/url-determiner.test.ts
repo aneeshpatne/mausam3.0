@@ -3,7 +3,10 @@ import { ecmwfUrlDeterminer, urlDeterminer } from "./url-determiner";
 
 function makeFetch(statusByUrl: Record<string, number>) {
   const calls: Array<{ method: string; url: string }> = [];
-  const fetchImpl: typeof fetch = async (input, init) => {
+  const fetchImpl: (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) => ReturnType<typeof fetch> = async (input, init) => {
     const url = String(input);
     calls.push({ method: init?.method ?? "GET", url });
     const status = statusByUrl[url] ?? 200;
