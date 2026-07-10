@@ -57,6 +57,8 @@ Email:
 - use layman language; no model jargon or model names
 - compact HTML structure: one alert line at the top, then one tight line/row per dated forecast window
 - for each date, give the practical verdict, confidence, affected areas if supported, and a tentative alert color if supported in a single concise line
+- each dated forecast line must start in this exact pattern: \`Thu Jul 09 2026, 07:00 AM-11:59 PM IST - 🟡 - (Yellow) Alert: ...\`
+- use the matching emoji for the alert color on each dated line: green \`🟢\`, yellow \`🟡\`, orange \`🟠\`, red \`🔴\`
 - do not title email sections "Day 1", "Day 2", etc.; use explicit calendar date/time windows in IST (e.g. 'Mon Jul 7 12:00-18:00 IST')
 - no neighborhood-specific claims unless supported
 - keep the whole email as compressed as possible while staying clear
