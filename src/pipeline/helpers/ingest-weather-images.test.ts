@@ -33,10 +33,11 @@ const ecmwf: WeatherImage = {
 
 test("uploads direct and optional images with the existing upload boundary", async () => {
   const uploads: string[] = [];
-  await ingestWeatherImages([direct, windy, gfs, ecmwf], {
+  const result = await ingestWeatherImages([direct, windy, gfs, ecmwf], {
     getImage: async (image) => Buffer.from(`${image.kind}:${image.url}`),
     upload: async (bucket, image) => {
       uploads.push(`${bucket}:${image.toString()}`);
+      return true;
     },
   });
 
@@ -46,6 +47,7 @@ test("uploads direct and optional images with the existing upload boundary", asy
     "gfs:direct:https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_2.png",
     "ecmwf:direct:https://www.example.com/analysis/models/ecmwf/2026070412/ecmwf_mslp_pcpn_india_2.png",
   ]);
+  expect(result.changedBuckets).toEqual(["radar", "satellite", "gfs", "ecmwf"]);
 });
 
 test("continues when optional sources fail but preserves fatal required-source errors", async () => {
@@ -57,6 +59,7 @@ test("continues when optional sources fail but preserves fatal required-source e
     },
     upload: async (bucket) => {
       uploads.push(bucket);
+      return true;
     },
   });
   expect(uploads).toEqual(["radar"]);
@@ -66,7 +69,7 @@ test("continues when optional sources fail but preserves fatal required-source e
       getImage: async () => {
         throw new Error("Radar unavailable");
       },
-      upload: async () => {},
+      upload: async () => true,
     }),
   ).rejects.toThrow("Radar unavailable");
 });

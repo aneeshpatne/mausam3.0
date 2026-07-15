@@ -5,7 +5,7 @@ test("uses an older stored Windy image when one exists", async () => {
   const images = await collectSavedImages(async (bucket) => ({
     first: undefined,
     last: { Key: `${bucket}.jpeg` },
-  }));
+  }), "https://example.com/");
 
   expect(images).toHaveLength(5);
   expect(images[2]?.label).toBe("Windy rain accumulation");
@@ -17,25 +17,25 @@ test("allows optional sources to be absent while requiring required images", asy
   const withoutWindy = await collectSavedImages(async (bucket) => ({
     first: undefined,
     last: bucket === "satellite" ? undefined : { Key: `${bucket}.jpeg` },
-  }));
+  }), "https://example.com/");
   expect(withoutWindy).toHaveLength(4);
 
   const withoutGfs = await collectSavedImages(async (bucket) => ({
     first: undefined,
     last: bucket === "gfs" ? undefined : { Key: `${bucket}.jpeg` },
-  }));
+  }), "https://example.com/");
   expect(withoutGfs).toHaveLength(4);
 
   const withoutEcmwf = await collectSavedImages(async (bucket) => ({
     first: undefined,
     last: bucket === "ecmwf" ? undefined : { Key: `${bucket}.jpeg` },
-  }));
+  }), "https://example.com/");
   expect(withoutEcmwf).toHaveLength(4);
 
   await expect(
     collectSavedImages(async (bucket) => ({
       first: undefined,
       last: bucket === "radar-sri" ? undefined : { Key: `${bucket}.jpeg` },
-    })),
+    }), "https://example.com/"),
   ).rejects.toThrow("Missing latest image for required weather source radar-sri");
 });

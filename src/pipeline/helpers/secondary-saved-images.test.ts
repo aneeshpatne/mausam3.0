@@ -24,6 +24,7 @@ test("collects one latest image per model+frame group", async () => {
       "ecmwf-32-new.jpeg",
       "ecmwf-40-new.jpeg",
     ]),
+    "https://example.com/",
   );
 
   expect(images).toHaveLength(10);
@@ -43,6 +44,7 @@ test("collects one latest image per model+frame group", async () => {
 test("skips missing frames without throwing", async () => {
   const images = await collectSecondarySavedImages(
     bucketWith(["gfs-8-new.jpeg", "ecmwf-40-new.jpeg"]),
+    "https://example.com/",
   );
 
   expect(images).toHaveLength(2);
@@ -51,6 +53,20 @@ test("skips missing frames without throwing", async () => {
 });
 
 test("returns empty list when bucket has no matches", async () => {
-  const images = await collectSecondarySavedImages(bucketWith([]));
+  const images = await collectSecondarySavedImages(bucketWith([]), "https://example.com/");
   expect(images).toHaveLength(0);
+});
+
+test("collects images stored under an atomic run prefix", async () => {
+  const images = await collectSecondarySavedImages(
+    bucketWith([
+      "run-2026-07-14T01:30:00.000Z/gfs-8.jpeg",
+      "run-2026-07-14T01:30:00.000Z/ecmwf-40.jpeg",
+    ]),
+    "https://example.com/",
+  );
+  expect(images.map((image) => image.label)).toEqual([
+    "GFS model forecast for +24h",
+    "ECMWF model forecast for +120h",
+  ]);
 });

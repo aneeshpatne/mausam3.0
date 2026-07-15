@@ -6,8 +6,8 @@ import { getRain } from "./data/rain/getRain";
 import { weatherStations } from "./data/rain/sources";
 import { collectSavedImages } from "./pipeline/helpers/saved-images";
 import { ingestWeatherImages } from "./pipeline/helpers/ingest-weather-images";
-import { state } from "./pipeline/interfaces/pipeline-state";
 import {
+  getMumbaiDateKey,
   getMumbaiCurrentTimeText,
   getMumbaiNowParts,
 } from "./pipeline/time/mumbai-time";
@@ -16,11 +16,11 @@ import {
   scrapeRainStats,
 } from "./scrape/rainStats/rainStats";
 import { scheduleJob } from "./bull/scheduleJobs";
-import { wipeAllBuckets } from "./storage/s3/utils/wipe-buckets";
 
 const UNCHANGED_IMAGES_RETRY_DELAY_MS = 30 * 60 * 1000;
 const PREV_STATUS_REDIS_KEY = "latest_prev_status";
 const SECONDARY_PREV_STATUS_REDIS_KEY = "secondary_prev_status";
+const MORNING_REPORT_KEY_PREFIX = "mausam:morning-report";
 
 function getPipelineMode(date: Date = new Date()): WeatherAgentMode {
   const { hour, minute } = getMumbaiNowParts(date);
@@ -33,19 +33,21 @@ function getPipelineMode(date: Date = new Date()): WeatherAgentMode {
 }
 
 export async function runPipeline(): Promise<void> {
-  state.changed = false;
   const pipelineMode = getPipelineMode();
-
+  const morningReportKey = `${MORNING_REPORT_KEY_PREFIX}:${getMumbaiDateKey()}`;
+  let forceMorningReport = false;
   if (pipelineMode === "morning") {
-    console.log(
-      "[pipeline] Morning mode active for IST 07:00 to 07:30. Wiping buckets.",
-    );
-    await wipeAllBuckets();
+    try {
+      forceMorningReport = (await Bun.redis.get(morningReportKey)) !== "done";
+    } catch (error) {
+      console.error("[pipeline] Could not read morning report marker.", error);
+      forceMorningReport = true;
+    }
   }
 
-  await ingestWeatherImages(images);
+  const ingestResult = await ingestWeatherImages(images);
 
-  if (state.changed === false) {
+  if (ingestResult.changedBuckets.length === 0 && !forceMorningReport) {
     console.log("[pipeline] All images are unchanged. Skipping this run.");
     try {
       await scheduleJob(UNCHANGED_IMAGES_RETRY_DELAY_MS);
@@ -129,5 +131,9 @@ export async function runPipeline(): Promise<void> {
     prevStatus,
     secondaryStatus,
     pipelineMode,
+    forceMorningReport ? getMumbaiDateKey() : undefined,
   );
+  if (forceMorningReport) {
+    await Bun.redis.set(morningReportKey, "done", "EX", 48 * 60 * 60);
+  }
 }

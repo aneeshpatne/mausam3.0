@@ -1,6 +1,7 @@
 import type { WeatherAgentImageInput } from "../../ai/agents/weather-agent";
 import { images } from "../../data/radar/radar-image";
 import { findLatestObjectStatsFromBucket } from "../../storage/s3/helpers/list-objects";
+import { getPublicBaseUrl } from "../../config";
 
 const imageLabelsByBucket: Record<string, string> = {
   "radar-max-z": "MAX-Z radar",
@@ -13,6 +14,7 @@ const imageLabelsByBucket: Record<string, string> = {
 
 export async function collectSavedImages(
   findLatest = findLatestObjectStatsFromBucket,
+  publicBaseUrl = getPublicBaseUrl(),
 ): Promise<WeatherAgentImageInput[]> {
   const savedImages: WeatherAgentImageInput[] = (
     await Promise.all(
@@ -32,7 +34,7 @@ export async function collectSavedImages(
         return [
           {
             type: "image" as const,
-            url: `${process.env.R2_PUBLIC_BASE_URL}${imageObj.bucketName}/${latestKey}`,
+            url: `${publicBaseUrl}${imageObj.bucketName}/${latestKey}`,
             label:
               imageLabelsByBucket[imageObj.bucketName] ?? imageObj.bucketName,
           },

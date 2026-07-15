@@ -1,5 +1,6 @@
 import type { WeatherAgentImageInput } from "../../ai/agents/weather-agent";
 import { listObjectsFromBuckets } from "../../storage/s3/helpers/list-objects";
+import { getPublicBaseUrl } from "../../config";
 
 const BUCKET_NAME = "model-images";
 
@@ -30,6 +31,7 @@ export async function collectSecondarySavedImages(
   listBucket: (bucket: string) => Promise<
     { Key?: string; LastModified?: Date | string }[]
   > = listObjectsFromBuckets,
+  publicBaseUrl = getPublicBaseUrl(),
 ): Promise<WeatherAgentImageInput[]> {
   const contents = await listBucket(BUCKET_NAME);
 
@@ -37,7 +39,10 @@ export async function collectSecondarySavedImages(
   for (const target of TARGETS) {
     const prefix = keyPrefix(target);
     const matches = contents
-      .filter((obj) => obj.Key?.startsWith(prefix))
+      .filter((obj) => {
+        const key = obj.Key;
+        return key?.startsWith(prefix) || key?.endsWith(`/${target.model}-${target.frame}.jpeg`);
+      })
       .sort((a, b) => {
         const dateA = a.LastModified ? new Date(a.LastModified).getTime() : 0;
         const dateB = b.LastModified ? new Date(b.LastModified).getTime() : 0;
@@ -55,7 +60,7 @@ export async function collectSecondarySavedImages(
 
     savedImages.push({
       type: "image",
-      url: `${process.env.R2_PUBLIC_BASE_URL}${BUCKET_NAME}/${latestKey}`,
+      url: `${publicBaseUrl}${BUCKET_NAME}/${latestKey}`,
       label: target.label,
     });
   }

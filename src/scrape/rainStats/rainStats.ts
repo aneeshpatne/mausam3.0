@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import type { Element } from "domhandler";
-import { source } from "../source";
+import { getRequiredUrl } from "../../config";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
@@ -44,7 +44,7 @@ async function fetchPageHtml() {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
     try {
-      const response = await axios.get(source, {
+      const response = await axios.get(getRequiredUrl("RAIN_STATS_URL"), {
         timeout: REQUEST_TIMEOUT_MS,
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; mausam-scraper/1.0)",
