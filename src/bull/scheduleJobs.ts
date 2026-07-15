@@ -1,15 +1,5 @@
-import { q } from "./orchestrator";
-
-const ACTIVE_START_HOUR = 7;
-const ACTIVE_END_HOUR = 23;
-const JOB_NAME = "delayed_job";
-
-export function isWithinActiveHours(delay: number, now = new Date()) {
-  const targetTime = new Date(now.getTime() + delay);
-  const hour = targetTime.getHours();
-
-  return hour >= ACTIVE_START_HOUR && hour < ACTIVE_END_HOUR;
-}
+import { DELAYED_JOB_NAME, q, SECONDARY_DAILY_JOB_NAME } from "./queue";
+import { isWithinActiveHours } from "./active-hours";
 
 export async function scheduleJob(delay: number) {
   if (!isWithinActiveHours(delay)) {
@@ -20,12 +10,13 @@ export async function scheduleJob(delay: number) {
     return false;
   }
 
+  const targetMinute = Math.floor((Date.now() + delay) / 60_000);
   await q.add(
-    JOB_NAME,
+    DELAYED_JOB_NAME,
     {},
     {
       delay,
-      jobId: `${JOB_NAME}-${Date.now()}`,
+      jobId: `${DELAYED_JOB_NAME}-${targetMinute}`,
       removeOnComplete: 10,
       removeOnFail: 50,
     },
@@ -33,8 +24,20 @@ export async function scheduleJob(delay: number) {
 
   console.log("[scheduleJob] Scheduled delayed job.", {
     delay,
-    jobName: JOB_NAME,
+    jobName: DELAYED_JOB_NAME,
   });
 
+  return true;
+}
+
+export async function scheduleSecondaryJob(delay: number): Promise<boolean> {
+  if (!isWithinActiveHours(delay)) return false;
+  const targetMinute = Math.floor((Date.now() + delay) / 60_000);
+  await q.add(SECONDARY_DAILY_JOB_NAME, {}, {
+    delay,
+    jobId: `${SECONDARY_DAILY_JOB_NAME}-retry-${targetMinute}`,
+    removeOnComplete: 10,
+    removeOnFail: 50,
+  });
   return true;
 }
