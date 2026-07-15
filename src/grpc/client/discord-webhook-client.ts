@@ -192,10 +192,11 @@ async function invokeUnary<TReq, TRes>(
   }
 
   return await new Promise<TRes>((resolve, reject) => {
-    (method as (
+    (method as unknown as (
       req: TReq,
+      options: grpc.CallOptions,
       cb: grpc.requestCallback<TRes>,
-    ) => grpc.ClientUnaryCall).call(client, request, (error, response) => {
+    ) => grpc.ClientUnaryCall).call(client, request, { deadline: Date.now() + 15_000 }, (error, response) => {
       if (error) {
         reject(error);
         return;
