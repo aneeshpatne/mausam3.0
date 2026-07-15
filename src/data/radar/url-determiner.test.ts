@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { ecmwfUrlDeterminer, urlDeterminer } from "./url-determiner";
+import {
+  determineGfsUrls,
+  ecmwfUrlDeterminer,
+  urlDeterminer,
+} from "./url-determiner";
 
 function makeFetch(statusByUrl: Record<string, number>) {
   const calls: Array<{ method: string; url: string }> = [];
@@ -157,4 +161,21 @@ test("throws when both the latest and previous ECMWF runs return 404", async () 
   await expect(
     ecmwfUrlDeterminer(new Date("2026-07-04T14:34:00Z"), 2, fetchImpl),
   ).rejects.toThrow("404");
+});
+
+test("selects one complete run for every requested model frame", async () => {
+  const frames = [8, 16] as const;
+  const latestFrame16 =
+    "https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_16.png";
+  const { fetchImpl } = makeFetch({ [latestFrame16]: 404 });
+
+  const urls = await determineGfsUrls(
+    new Date("2026-07-04T14:07:00Z"),
+    frames,
+    fetchImpl,
+  );
+  expect([...urls.values()]).toEqual([
+    "https://www.example.com/analysis/models/gfs/2026070406/gfs_mslp_pcpn_india_8.png",
+    "https://www.example.com/analysis/models/gfs/2026070406/gfs_mslp_pcpn_india_16.png",
+  ]);
 });

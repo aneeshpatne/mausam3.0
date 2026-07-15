@@ -11,7 +11,7 @@ export async function fetchImageAsJpeg(url: string): Promise<Buffer> {
   const res = await fetch(url, getImageFetchInit(url));
 
   if (!res.ok) {
-    throw new Error("Image fetch failed");
+    throw new Error(`Image fetch failed with HTTP ${res.status} for ${url}`);
   }
   const arrayBuffer = await res.arrayBuffer();
   const jpegBuffer = await sharp(arrayBuffer)
@@ -28,18 +28,17 @@ export async function fetchImage(url: string): Promise<Buffer> {
   const res = await fetch(url, getImageFetchInit(url));
 
   if (!res.ok) {
-    throw new Error("Image fetch failed");
+    throw new Error(`Image fetch failed with HTTP ${res.status} for ${url}`);
   }
   const arrayBuffer = await res.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
 
 function getImageFetchInit(url: string): RequestInit | undefined {
-  if (!new URL(url).hostname.endsWith("example.com")) {
-    return undefined;
-  }
-
   return {
-    headers: TROPICAL_TIDBITS_REQUEST_HEADERS,
+    signal: AbortSignal.timeout(30_000),
+    ...(new URL(url).hostname.endsWith("example.com")
+      ? { headers: TROPICAL_TIDBITS_REQUEST_HEADERS }
+      : {}),
   };
 }

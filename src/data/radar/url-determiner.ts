@@ -110,6 +110,7 @@ async function assertAvailable(
   const response = await fetchImpl(url, {
     method: "GET",
     headers: TROPICAL_TIDBITS_REQUEST_HEADERS,
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (response.status === 404) {
@@ -148,6 +149,48 @@ async function determineTropicalTidbitsUrl(
   );
   await assertAvailable(config.model, previousUrl, fetchImpl);
   return previousUrl;
+}
+
+async function determineTropicalTidbitsUrls(
+  config: TropicalTidbitsModelConfig,
+  now: Date,
+  frames: readonly number[],
+  fetchImpl: FetchLike = fetch,
+): Promise<Map<number, string>> {
+  const latestRunId = getLatestEligibleRunId(now);
+  const candidates = [latestRunId, getPreviousRunId(latestRunId)];
+  for (const runId of candidates) {
+    const urls = new Map(
+      frames.map((frame) => [frame, buildTropicalTidbitsUrl(config, runId, frame)]),
+    );
+    const results = await Promise.allSettled(
+      [...urls.values()].map((url) => assertAvailable(config.model, url, fetchImpl)),
+    );
+    const non404Failure = results.find(
+      (result) =>
+        result.status === "rejected" &&
+        (!(result.reason instanceof Error) || result.reason.message !== "404"),
+    );
+    if (non404Failure?.status === "rejected") throw non404Failure.reason;
+    if (results.every((result) => result.status === "fulfilled")) return urls;
+  }
+  throw new Error(`No complete ${config.model.toUpperCase()} model run is available`);
+}
+
+export function determineGfsUrls(
+  now: Date,
+  frames: readonly number[],
+  fetchImpl: FetchLike = fetch,
+) {
+  return determineTropicalTidbitsUrls(GFS_CONFIG, now, frames, fetchImpl);
+}
+
+export function determineEcmwfUrls(
+  now: Date,
+  frames: readonly number[],
+  fetchImpl: FetchLike = fetch,
+) {
+  return determineTropicalTidbitsUrls(ECMWF_CONFIG, now, frames, fetchImpl);
 }
 
 export async function urlDeterminer(
