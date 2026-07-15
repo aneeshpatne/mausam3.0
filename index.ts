@@ -1,1 +1,3 @@
-import "./src/bull/orchestrator";
+import { startOrchestrator } from "./src/bull/orchestrator";
+
+await startOrchestrator();
