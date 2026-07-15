@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { tool } from "langchain";
 import { sendEmailRpc } from "../../grpc/client";
-import { mailids } from "./mail_ids";
+import { getMailRecipients } from "../../config";
 import { buildMailTemplate } from "./send-mail";
 
 const alertColorSchema = z.enum(["green", "yellow", "orange", "red"]);
@@ -34,12 +34,15 @@ export const sendMailToolSecondary = tool(
       alert_color,
       subject,
     });
-    await sendEmailRpc({
+    const response = await sendEmailRpc({
       app_id: "MAUSAM",
-      to: mailids,
+      to: getMailRecipients(),
       subject: subject,
       body: templatedMail,
     });
+    if (!response.success) {
+      throw new Error("Mailer service reported email delivery failure");
+    }
     return "Mail sent successfully";
   },
   {

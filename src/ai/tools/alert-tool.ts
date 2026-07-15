@@ -28,7 +28,9 @@ export const alertTool = tool(
     await Bun.redis.set(ALERT_REDIS_KEY, JSON.stringify({ message, color }));
 
     console.log("[tool:alert] Sending alert banner.", { message, color });
-    return `Alert sent successfully (${alertResponse.mode}.`;
+    return alertResponse.mode
+      ? `Alert sent successfully (${alertResponse.mode}).`
+      : "Alert sent successfully.";
   },
   {
     name: "alert_tool",

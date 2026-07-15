@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { tool } from "langchain";
 import { sendEmailRpc } from "../../grpc/client";
-import { mailids } from "./mail_ids";
+import { getMailRecipients } from "../../config";
 
 const alertColorSchema = z.enum(["green", "yellow", "orange", "red"]);
 const sendMailDescription =
@@ -44,6 +44,23 @@ function normalizeMailContent(mailContent: string): string {
     .join("<br />");
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  })[character] ?? character);
+}
+
+function sanitizeMailHtml(value: string): string {
+  return value
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(?:javascript|data):/gi, "");
+}
+
 export function buildMailTemplate(
   subject: string,
   alertColor: z.infer<typeof alertColorSchema>,
@@ -51,7 +68,8 @@ export function buildMailTemplate(
 ): string {
   const severityLabel = alertColor.toUpperCase();
   const severityHex = alertHex[alertColor];
-  const normalizedContent = normalizeMailContent(mailContent);
+  const normalizedContent = sanitizeMailHtml(normalizeMailContent(mailContent));
+  const safeSubject = escapeHtml(subject);
 
   return `<!doctype html>
 <html>
@@ -67,7 +85,7 @@ export function buildMailTemplate(
             </tr>
             <tr>
               <td style="padding:20px 20px 8px 20px; font-family:Arial, Helvetica, sans-serif; color:#111827;">
-                <div style="font-size:20px; line-height:28px; font-weight:700;">${subject}</div>
+                <div style="font-size:20px; line-height:28px; font-weight:700;">${safeSubject}</div>
               </td>
             </tr>
             <tr>
@@ -95,12 +113,15 @@ export const sendMailTool = tool(
       alert_color,
       subject,
     });
-    await sendEmailRpc({
+    const response = await sendEmailRpc({
       app_id: "MAUSAM",
-      to: mailids,
+      to: getMailRecipients(),
       subject: subject,
       body: templatedMail,
     });
+    if (!response.success) {
+      throw new Error("Mailer service reported email delivery failure");
+    }
     return "Mail sent successfully";
   },
   {
