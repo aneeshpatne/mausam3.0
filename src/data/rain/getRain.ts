@@ -23,6 +23,7 @@ async function postRainData(stationId: number | string): Promise<string> {
   const response = await fetch(rainDataUrl, {
     method: "POST",
     body,
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
