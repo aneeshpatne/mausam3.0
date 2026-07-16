@@ -1,5 +1,5 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { areImagesVisuallySame } from "../../../data/radar/are-same";
+import { areBuffersSame } from "../../../data/radar/are-same";
 import { fetchImage } from "../../../data/radar/get-image";
 import { client } from "../client/s3";
 import { listObjectsFromBuckets } from "./list-objects";
@@ -19,7 +19,7 @@ interface UploadDependencies {
 const defaultDependencies: UploadDependencies = {
   listObjects: listObjectsFromBuckets,
   fetchExisting: fetchImage,
-  areSame: areImagesVisuallySame,
+  areSame: areBuffersSame,
   put: async (bucketName, key, imageBuffer) => {
     await client.send(
       new PutObjectCommand({
