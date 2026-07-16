@@ -5,15 +5,26 @@ import { getOrCreateDecision } from "../decision-cache";
 import { saveSecondaryStatus } from "../tools/secondary-save-tool";
 import { sendMailToolSecondary } from "../tools/secondary-send-mail";
 import { sendSecondaryMessageTool } from "../tools/secondary-send-message";
+import { buildSecondaryAgentPrompt } from "./agent-prompts";
 import { secondaryModel } from "./model";
 import type { WeatherAgentImageInput } from "./weather-agent";
 
 const secondaryDecisionSchema = z.object({
-  alert: z.enum(["green", "yellow", "orange", "red"]),
-  compact_summary: z.string().trim().min(1),
-  email_subject: z.string().trim().min(1).max(80),
-  email_html: z.string().trim().min(1),
-  discord_message: z.string().trim().min(1),
+  alert: z.enum(["green", "yellow", "orange", "red"]).describe(
+    "Peak supported severity across the complete D1-D5 window",
+  ),
+  compact_summary: z.string().trim().min(1).describe(
+    "Token-minimal LLM-only grug-style memory preserving material facts across all five dated forecast windows",
+  ),
+  email_subject: z.string().trim().min(1).max(80).describe(
+    "Short layman email subject, at most 80 characters",
+  ),
+  email_html: z.string().trim().min(1).describe(
+    "Short layman HTML with an overall alert and one line per dated D1-D5 window",
+  ),
+  discord_message: z.string().trim().min(1).describe(
+    "Dense technical D1-D5 update with exact IST windows and model comparison",
+  ),
 });
 
 export async function secondaryAgent(
@@ -24,11 +35,11 @@ export async function secondaryAgent(
   if (images.length !== 10) {
     throw new Error(`Secondary analysis requires 10 images; received ${images.length}`);
   }
-  const systemMsg = new SystemMessage(`Analyze the supplied GFS and ECMWF images for Mumbai MMR's D1-D5 outlook and return one structured reporting decision.
-Current Mumbai time: ${currentTimeText}
-${prevStatus ? `Previous status is context only: ${prevStatus}` : ""}
-Use only supplied images. Map +24/+48/+72/+96/+120h to exact calendar dates and IST windows. Explain material model disagreement and lower confidence when evidence is mixed. Do not invent totals, timing, wind, lightning, or impacts.
-The compact summary is machine-only terse fragments. Email is short layman HTML with one line per dated window, no model names or synoptic jargon. Discord is a dense technical update including GFS/ECMWF differences, precipitation, pressure/wind signals, confidence, and rationale.`);
+  const systemMsg = new SystemMessage(buildSecondaryAgentPrompt({
+    currentTimeText,
+    prevStatus,
+    imageOrder: images.map((image) => image.label),
+  }));
   const runId = createRunId("secondary", images.map((image) => image.url));
   const structuredModel = secondaryModel.withStructuredOutput(
     secondaryDecisionSchema,

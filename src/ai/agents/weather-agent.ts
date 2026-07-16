@@ -8,7 +8,7 @@ import { sendMailTool } from "../tools/send-mail";
 import { sendMessageTool } from "../tools/send-message";
 import { createRunId, runDeliveryOnce } from "../delivery-idempotency";
 import { model } from "./model";
-import { MUMBAI_LOCALITY_GUIDANCE } from "./weather-locality-guidance";
+import { buildPrimaryAgentPrompt } from "./agent-prompts";
 
 export interface WeatherAgentImageInput {
   type: "image";
@@ -20,14 +20,28 @@ export interface WeatherAgentImageInput {
 export type WeatherAgentMode = "default" | "morning";
 const alertSchema = z.enum(["green", "yellow", "orange", "red"]);
 const weatherDecisionSchema = z.object({
-  alert: alertSchema,
-  radar_summary: z.string().trim().min(1),
-  prediction_summary: z.string().trim().min(1),
-  schedule_delay_ms: z.number().int().positive().nullable(),
-  email_subject: z.string().trim().min(1).max(80),
-  email_html: z.string().trim().min(1),
-  discord_message: z.string().trim().min(1).max(900),
-  alert_banner: z.string().trim().min(1),
+  alert: alertSchema.describe("Overall current and near-term Mumbai MMR severity"),
+  radar_summary: z.string().trim().min(1).describe(
+    "Token-minimal LLM-only grug-style fragments describing current radar echoes; abbreviations and semicolons, no prose or filler",
+  ),
+  prediction_summary: z.string().trim().min(1).describe(
+    "Token-minimal LLM-only grug-style fragments preserving material near-term timing, trend, confidence, and risk",
+  ),
+  schedule_delay_ms: z.number().int().positive().nullable().describe(
+    "Milliseconds until a useful same-day follow-up, or null when none should run before 11 PM IST",
+  ),
+  email_subject: z.string().trim().min(1).max(80).describe(
+    "Concise user-facing email subject, at most 80 characters",
+  ),
+  email_html: z.string().trim().min(1).describe(
+    "Concise practical layman HTML that follows the email requirements",
+  ),
+  discord_message: z.string().trim().min(1).max(900).describe(
+    "Technical future-facing Discord update, no more than 900 characters",
+  ),
+  alert_banner: z.string().trim().min(1).describe(
+    "Plain-language alert banner of no more than 7 words",
+  ),
 });
 
 const delayRanges: Record<z.infer<typeof alertSchema>, [number, number]> = {
@@ -56,24 +70,22 @@ export async function weatherAgent(
   runDiscriminator?: string,
 ): Promise<void> {
   if (images.length === 0) throw new Error("Weather analysis requires images");
-  const imageOrderText = images.map((image) => image.label).join(", ");
-  const systemMsg = new SystemMessage(`Analyze Mumbai MMR weather evidence and return one structured reporting decision.
-Current local Mumbai time: ${currentTimeText}
-Mode: ${mode}. ${mode === "morning" ? "Prioritize the morning commute and late-morning trend." : ""}
-${prevStatus ? `Previous saved status, context only: ${prevStatus}` : ""}
-${secondaryStatus ? `Medium-range context only: ${secondaryStatus}` : ""}
-
-Use only supplied evidence. Radar and observations outrank forecasts. GFS/ECMWF describe the next 6 hours, not current rain. Never invent totals, timing, wind, lightning, motion, impacts, or station values. With weak evidence, lower severity and confidence.
-Locality rules: ${MUMBAI_LOCALITY_GUIDANCE}
-Severity: green quiet; yellow moderate caution; orange heavy-rain/strong-convection risk; red intense or widespread severe-rain signal.
-Scheduling delay ranges: red 2-3h, orange 3-6h, yellow 3-10h, green 8-12h. Use null when no useful same-day report before 11 PM IST exists.
-Email must be concise, practical, future-facing HTML and state the next-update decision. Discord must be technical, future-facing, 8-14 short lines when useful, and contain no emojis. Alert banner must be plain language and at most 7 words.
-Image order: ${imageOrderText}.`);
+  const systemMsg = new SystemMessage(buildPrimaryAgentPrompt({
+    currentTimeText,
+    mode,
+    prevStatus,
+    secondaryStatus,
+    imageOrder: images.map((image) => image.label),
+  }));
   const messages = [
     systemMsg,
     new HumanMessage({ contentBlocks: images }),
-    new HumanMessage(rainData || "Rain station data unavailable."),
-    new HumanMessage(localStation),
+    new HumanMessage(
+      `<rain_observations>${rainData || "unavailable"}</rain_observations>`,
+    ),
+    new HumanMessage(
+      `<local_station_observations>${localStation || "unavailable"}</local_station_observations>`,
+    ),
   ];
   const runId = createRunId("primary", [
     mode,
