@@ -1,569 +1,342 @@
+<div align="center">
+
 # Mausam 3.0
 
-### Operational weather intelligence for Mumbai MMR
+**Weather updates for Mumbai that only fire when the evidence changes**
+
+An automated nowcast and five-day outlook pipeline for Mumbai and the Mumbai Metropolitan Region. It ingests radar, rain, local-station, and model imagery, produces a structured severity decision, and delivers email, Discord, and local alert reports on a Mumbai-aware schedule.
 
 [![Runtime: Bun](https://img.shields.io/badge/runtime-Bun-14151a)](https://bun.sh)
 [![Language: TypeScript](https://img.shields.io/badge/language-TypeScript-3178c6)](https://www.typescriptlang.org/)
+[![Queue: BullMQ](https://img.shields.io/badge/queue-BullMQ-blue)](https://docs.bullmq.io/)
+[![Tests: 46 passing](https://img.shields.io/badge/tests-46%20passing-brightgreen)](#running-tests)
 [![License: AGPL v3+](https://img.shields.io/badge/license-AGPL--3.0--or--later-663399)](./LICENSE)
 
-Mausam 3.0 is an automated weather-observation and reporting pipeline built for Mumbai and the Mumbai Metropolitan Region. It collects radar, rain, local-station, and numerical-model evidence; detects meaningful changes; asks a multimodal model for a constrained weather decision; and delivers a consistent report through email, Discord, and a local alert surface.
+</div>
 
-It is designed as a long-running operational service rather than a dashboard or a general-purpose weather API. The system emphasizes evidence freshness, bounded failure, deterministic delivery, and safe retries.
+---
+
+## Overview
+
+Mausam 3.0 takes multi-source weather evidence for Mumbai MMR—IMD radar frames, rain-station observations, a local station feed, Windy accumulation screenshots, and GFS/ECMWF charts—and decides whether conditions have changed enough to justify a new report. When a report is required, a multimodal model returns a validated severity decision (green / yellow / orange / red) with layperson email HTML, a technical Discord message, and a short alert banner. The value is operational continuity: recipients get consistent updates when radar or context changes, not a flood of noise from every scheduled tick.
+
+The service is a long-running [Bun](https://bun.sh/) process orchestrated by [BullMQ](https://docs.bullmq.io/) on Redis. Evidence is normalized with Sharp, optional Windy frames are captured with Puppeteer, structured decisions are produced through LangChain + Zod, and side effects (status persistence, follow-up scheduling, email, Discord, local alert) run under Redis-backed decision caching and per-action idempotency locks. There is no interactive web UI; delivery surfaces are email, Discord, a local alert HTTP endpoint, and Uptime Kuma push monitors.
 
 > [!IMPORTANT]
 > Mausam is an independent decision-support project. It is not an official warning service and must not replace guidance from the India Meteorological Department, civil authorities, or emergency services.
 
-## Contents
+## Features
 
-- [Why Mausam exists](#why-mausam-exists)
-- [What it does](#what-it-does)
-- [System architecture](#system-architecture)
-- [How a report is produced](#how-a-report-is-produced)
-- [Primary nowcast pipeline](#primary-nowcast-pipeline)
-- [Secondary five-day pipeline](#secondary-five-day-pipeline)
-- [Reliability model](#reliability-model)
-- [Data and storage model](#data-and-storage-model)
-- [Scheduling](#scheduling)
-- [Project structure](#project-structure)
-- [Requirements](#requirements)
-- [Configuration](#configuration)
-- [Installation and operation](#installation-and-operation)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
-- [Security and privacy](#security-and-privacy)
-- [Contributing](#contributing)
-- [License](#license)
+| Area | What the project provides |
+| --- | --- |
+| **Primary nowcast** | Ingests PPI-Z and SRI radar (required), plus optional Windy accumulation, short-range GFS, and ECMWF frames. Builds rain and local-station context, then generates a structured near-term decision for Mumbai MMR. |
+| **Change-gated runs** | Uploads only when the new image hash differs from the latest stored object. Unchanged evidence skips the AI call and schedules a 30-minute retry during active hours. |
+| **Morning guarantee** | Between 07:00 and 07:30 IST, the primary pipeline forces one report per Mumbai calendar date even if imagery is unchanged, tracked by a Redis morning-completion marker. |
+| **Secondary D1–D5 outlook** | Daily transactional pipeline resolves complete GFS and ECMWF runs (five frames each at ~+24h through +120h), stages ten images under a run prefix, and only then analyzes and delivers. Incomplete sets are cleaned and aborted. |
+| **Structured decisions** | Primary and secondary model outputs are Zod-validated. Free-form text never drives side effects; application code owns delivery order, recipients, and retries. |
+| **Multi-channel delivery** | Primary order: save status → optional follow-up schedule → email → Discord → local alert. Secondary order: save status → email → Discord. Each action is locked and marked complete for 30 days. |
+| **Mumbai scheduling** | Delayed follow-ups only fire same-day between 07:00 inclusive and 23:00 exclusive IST. Primary delayed jobs coalesce under a single deduplication ID so at most one follow-up stays pending. |
+| **Severity-aware timing** | Follow-up delay windows are enforced by severity: red 2–3h, orange 3–6h, yellow 3–10h, green 8–12h (or null when no same-day update is useful). |
+| **Evidence storage** | S3-compatible buckets hold the latest JPEG evidence per source. Direct images are resized to 800×800 cover at JPEG quality 20; Windy screenshots use a 1280×720 viewport at quality 80. |
+| **Health signals** | Minute Uptime Kuma heartbeats plus a successful primary-run push URL. External I/O uses bounded timeouts (images 30s, model 120s, gRPC 15s, monitoring 10s). |
 
-## Why Mausam exists
+> [!NOTE]
+> **Status as of the current codebase**
+>
+> - **Complete:** primary and secondary pipelines, image ingestion with optional-source tolerance, decision cache, delivery idempotency, BullMQ schedules, launchd plist, and a 46-test suite (`bun test`).
+> - **Operational dependency:** email and Discord require external gRPC services (`MAILER_GRPC_ADDRESS`, `DISCORD_WEBHOOK_GRPC_ADDRESS`). Local weather/alert HTTP endpoints and rain-stats HTML are required at config validation time.
+> - **Startup behavior:** `startOrchestrator()` currently **obliterates** `weather_queue` on every start, then reinstalls schedulers and enqueues a startup primary run. Delayed work that existed before restart is not preserved across process restarts.
+> - **Station coverage:** rain context is built from two configured stations (Borivali, Kandivali East) plus scraped rain statistics; station failures are non-fatal and omitted from the prompt.
 
-Mumbai weather changes quickly and unevenly. A single city-wide forecast can miss the operational question people actually care about: what is happening now, where is the stronger signal, how might it evolve over the next few hours, and when is another update worth sending?
+### Operational snapshot
 
-Mausam combines several imperfect sources instead of treating any one source as authoritative:
+Point-in-time values from the live Redis-backed `weather_queue` and status keys on this host (captured 2026-07-27 ~17:32 IST). These will change as the service runs.
 
-- Radar imagery describes current precipitation structure.
-- Rain stations provide measured accumulation context.
-- A local station contributes temperature, humidity, and pressure.
-- GFS and ECMWF imagery provides short- and medium-range guidance.
-- Previous reports provide continuity without being treated as fresh evidence.
+| Metric | Value |
+| --- | --- |
+| Queue counts | waiting 0 · active 0 · delayed 4 · completed 10 · failed 50 · schedulers 3 |
+| Next primary | 2026-07-28 07:15 IST (`daily-weather-pipeline`) |
+| Next secondary | 2026-07-28 07:00 IST (`daily-secondary-pipeline`) |
+| Next delayed follow-up | 2026-07-27 20:19 IST (`delayed-weather-pipeline`, 3h delay) |
+| Current primary alert | **yellow** — intermittent showers possible this evening |
+| Current primary memory | Radar ~16:47 IST; scattered weak–moderate Mumbai–Thane–Navi Mumbai–Panvel; iso stronger Raigad |
+| Current secondary peak | **orange** — D1–D5 outlook with tentative Jul 30 peak disputed between GFS/ECMWF |
+| Alert banner | `Intermittent showers possible this evening` (yellow) |
+| Morning markers | `2026-07-26` and `2026-07-27` both `done` |
+| Decision / delivery keys | ~87 cached decisions · ~386 delivery markers under `mausam:*` |
+| Recent non-uptime failures | Secondary timeout (27 Jul 07:02); mailer gRPC `DEADLINE_EXCEEDED` on delayed primary runs (25–26 Jul) |
 
-The result is a compact reporting workflow that only runs when the evidence changes or when a scheduled morning report is due.
-
-## What it does
-
-- Downloads and normalizes required IMD radar images.
-- Captures a rendered Windy rain-accumulation view with Puppeteer.
-- Resolves complete GFS and ECMWF model runs from Tropical Tidbits.
-- Stores normalized JPEG evidence in S3-compatible object storage.
-- Uses perceptual comparison to ignore tiny rendering differences.
-- Collects rain-station, rain-statistics, and local-station observations.
-- Produces a validated structured weather decision with a multimodal model.
-- Sends a layperson email, a technical Discord update, and a local alert.
-- Schedules follow-up reports according to severity and Mumbai active hours.
-- Uses Redis-backed decision caching and idempotency keys to make retries safe.
-- Runs a separate transactional D1–D5 outlook pipeline every morning.
-
-## System architecture
+## From input to result
 
 ```mermaid
 flowchart LR
-    subgraph Sources[Weather evidence]
-        IMD[IMD radar]
-        WINDY[Windy accumulation]
-        MODELS[GFS + ECMWF]
-        RAIN[Rain stations]
-        LOCAL[Local sensor]
-    end
-
-    subgraph Runtime[Bun service]
-        QUEUE[BullMQ scheduler + worker]
-        INGEST[Image ingestion]
-        DIFF[Perceptual change detection]
-        CONTEXT[Observation context]
-        AI[Structured multimodal decision]
-        DELIVERY[Deterministic delivery]
-    end
-
-    subgraph State[Durable state]
-        S3[(S3 / R2 images)]
-        REDIS[(Redis decisions + locks)]
-    end
-
-    subgraph Outputs[Report surfaces]
-        MAIL[Email via gRPC]
-        DISCORD[Discord via gRPC]
-        ALERT[Local alert API]
-        MONITOR[Uptime Kuma]
-    end
-
-    IMD --> INGEST
-    WINDY --> INGEST
-    MODELS --> INGEST
-    INGEST --> DIFF
-    DIFF <--> S3
-    RAIN --> CONTEXT
-    LOCAL --> CONTEXT
-    QUEUE --> INGEST
-    DIFF --> AI
-    CONTEXT --> AI
-    S3 --> AI
-    AI <--> REDIS
-    AI --> DELIVERY
-    DELIVERY <--> REDIS
-    DELIVERY --> MAIL
-    DELIVERY --> DISCORD
-    DELIVERY --> ALERT
-    QUEUE --> MONITOR
+  SRC[Radar / Windy / models] --> ING[Ingest + hash compare]
+  ING -->|unchanged + not morning| RETRY[Schedule 30m retry]
+  ING -->|changed or morning| CTX[Rain + local + prior status]
+  CTX --> AI[Structured multimodal decision]
+  AI --> CACHE{Decision cached?}
+  CACHE -->|miss| MODEL[Validate with Zod + cache 30d]
+  CACHE -->|hit| DEL
+  MODEL --> DEL[Idempotent delivery chain]
+  DEL --> OUT[Status · schedule · email · Discord · alert]
+  DEL --> REDIS[(Redis locks + markers)]
+  ING --> S3[(S3 / R2 evidence)]
+  S3 --> AI
 ```
 
-### Component dependency graph
+Unchanged imagery short-circuits before the model is called, which keeps API cost and noise low. When a run proceeds, the decision is keyed by a hash of mode, optional morning date key, and public image URLs. Retries reuse that decision and skip any delivery action already marked `done`. Active locks expire after ten minutes so a crashed worker cannot block a channel forever. Active-hours policy is applied only when scheduling delayed jobs—not when evaluating whether a current run may execute.
+
+## Report domains
 
 ```mermaid
 graph TD
-    ENTRY[index.ts] --> ORCH[orchestrator]
-    ORCH --> QUEUE[queue definitions]
-    ORCH --> PRIMARY[primary pipeline]
-    ORCH --> SECONDARY[secondary pipeline]
-    PRIMARY --> INGEST[image ingestion]
-    PRIMARY --> OBS[observation collectors]
-    PRIMARY --> PAGENT[primary decision engine]
-    SECONDARY --> RUNS[complete model-run resolver]
-    SECONDARY --> SAGENT[secondary decision engine]
-    PAGENT --> TOOLS[delivery tools]
-    SAGENT --> TOOLS
-    TOOLS --> GRPC[gRPC clients]
-    INGEST --> STORAGE[S3 helpers]
-    RUNS --> STORAGE
-    PAGENT --> REDIS[Redis state]
-    SAGENT --> REDIS
+  R[Mausam report]
+  R --> N[Primary nowcast]
+  R --> F[Secondary D1-D5 outlook]
+  R --> S[Shared state]
+
+  N --> N1[Severity green-yellow-orange-red]
+  N --> N2[Radar + near-term prediction memory]
+  N --> N3[Layperson email]
+  N --> N4[Technical Discord]
+  N --> N5[Local alert banner]
+  N --> N6[Optional same-day follow-up]
+
+  F --> F1[Peak severity across D1-D5]
+  F --> F2[Compact five-day memory]
+  F --> F3[Outlook email]
+  F --> F4[Model-comparison Discord]
+
+  S --> S1[latest_prev_status]
+  S --> S2[secondary_prev_status]
+  S --> S3[latest_alert_banner]
+  S --> S4[morning-report markers]
 ```
 
-Queue construction is deliberately separated from orchestration startup. Importing a pipeline or scheduling helper does not start a worker, create schedules, or delete queued work.
-
-## How a report is produced
+## Architecture
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Q as BullMQ Worker
-    participant P as Primary Pipeline
-    participant U as Upstream Sources
-    participant S as S3 / R2
-    participant R as Redis
-    participant M as Multimodal Model
-    participant D as Delivery Services
+flowchart TB
+  subgraph App[Application]
+    ENTRY[index.ts]
+    ORCH[orchestrator.ts]
+    PRIM[pipeline.ts]
+    SEC[secondaryPipeline.ts]
+  end
 
-    Q->>P: Execute scheduled or delayed job
-    P->>U: Fetch radar and optional guidance
-    P->>S: Load latest stored evidence
-    P->>P: Compare normalized pixels
+  subgraph Domain[Domain services]
+    ING[ingest-weather-images]
+    OBS[rain / local / rain-stats]
+    PAGENT[weatherAgent]
+    SAGENT[secondaryAgent]
+    TOOLS[delivery tools]
+  end
 
-    alt Nothing changed and no morning report is due
-        P->>Q: Schedule bounded retry
-        P-->>Q: Complete without an AI call
-    else Report is required
-        P->>U: Collect rain and local observations
-        P->>S: Resolve current evidence URLs
-        P->>R: Load prior context and cached decision
-        alt Decision is not cached
-            P->>M: Request validated structured decision
-            M-->>P: Severity, summaries, timing, messages
-            P->>R: Cache decision for this evidence run
-        end
-        loop Fixed delivery order
-            P->>R: Acquire per-action idempotency lock
-            P->>D: Persist / schedule / email / Discord / alert
-            P->>R: Mark action complete
-        end
-        P-->>Q: Complete
-    end
+  subgraph Infra[Infrastructure]
+    Q[BullMQ weather_queue]
+    REDIS[(Redis)]
+    S3[(S3-compatible storage)]
+    GRPC[Mailer + Discord gRPC]
+    HTTP[Local weather / alert HTTP]
+    MON[Uptime Kuma push]
+  end
+
+  ENTRY --> ORCH
+  ORCH --> Q
+  Q --> PRIM
+  Q --> SEC
+  PRIM --> ING
+  PRIM --> OBS
+  PRIM --> PAGENT
+  SEC --> SAGENT
+  ING --> S3
+  PAGENT --> REDIS
+  SAGENT --> REDIS
+  PAGENT --> TOOLS
+  SAGENT --> TOOLS
+  TOOLS --> GRPC
+  TOOLS --> HTTP
+  TOOLS --> Q
+  ORCH --> MON
 ```
 
-The model proposes one structured decision. Application code—not the model—controls side-effect order, scheduling bounds, recipients, and retry behavior.
+Architectural conventions that appear in the code:
 
-## Primary nowcast pipeline
+- **No import-time workers:** `queue.ts` only constructs the BullMQ `Queue`. Workers, schedulers, and obliteration live in `orchestrator.ts`.
+- **Model proposes, app disposes:** agents return Zod-validated objects; tools perform side effects in a fixed order under `runDeliveryOnce`.
+- **Evidence-derived run IDs:** `createRunId` hashes namespace + image URLs (and morning discriminator for primary) so retries are stable.
+- **Replace-then-delete storage:** `uploadWithLimit` uploads the new object first, then deletes previous keys only after success.
+- **Required vs optional sources:** required radar failures fail the run; optional Windy/GFS/ECMWF failures log and continue with the latest stored object when available.
+- **Mumbai time is explicit:** scheduling, morning windows, and report timestamps use `Asia/Kolkata` helpers rather than host-local time.
 
-The primary pipeline focuses on current conditions and the next several hours.
+## Tech stack
 
-### Evidence priority
-
-The reporting prompt and execution flow use the following hierarchy:
-
-1. Radar and measured observations
-2. Local rain and station context
-3. Short-range GFS/ECMWF guidance
-4. Previous report memory
-5. Medium-range outlook memory
-
-Previous state improves continuity but is never considered current ground truth.
-
-### Image ingestion
-
-Required radar sources fail the run when unavailable. Windy and short-range model sources are optional: their failure is logged, and the most recently stored image may still be used.
-
-Direct images retain the established normalization behavior:
-
-- Resize: `800 × 800`
-- Fit: `cover`, centered
-- Format: JPEG
-- Quality: `20`
-
-Windy screenshots use a `1280 × 720` viewport and JPEG quality `80` so the map, legend, timeline, city labels, and controls remain visible.
-
-### Change detection
-
-The latest and incoming images are normalized to a small grayscale comparison surface. A frame is treated as unchanged when both its average pixel difference and materially changed pixel fraction remain below conservative thresholds. This avoids reports caused only by JPEG noise, antialiasing, or tiny page-render differences.
-
-The original image is still stored and supplied to the model; the comparison surface is used only for change detection.
-
-### Morning report
-
-Between 07:00 and 07:30 IST, Redis tracks one morning report per Mumbai calendar date. The pipeline no longer wipes evidence buckets to force the report. The marker is written only after the report completes successfully.
-
-## Secondary five-day pipeline
-
-The secondary pipeline creates a D1–D5 outlook from GFS and ECMWF frames at approximately +24, +48, +72, +96, and +120 hours.
-
-```mermaid
-stateDiagram-v2
-    [*] --> ResolveRuns
-    ResolveRuns --> Abort: no complete run
-    ResolveRuns --> Stage: one complete run per model
-    Stage --> CleanupStage: any download or upload fails
-    CleanupStage --> Abort
-    Stage --> Validate: ten images uploaded
-    Validate --> Abort: incomplete set
-    Validate --> Promote: complete set
-    Promote --> Prune: remove older runs
-    Prune --> Analyze
-    Analyze --> Deliver
-    Deliver --> [*]
-```
-
-Each model is resolved to one initialization run that contains every required frame. Frames from different model initializations are never silently mixed.
-
-Images are uploaded under a deterministic run prefix. Existing complete evidence is retained until all ten new images have uploaded. If staging fails, only the staged objects are removed. The model is never called with an incomplete set.
-
-## Reliability model
-
-### Structured decisions
-
-Primary and secondary model outputs are parsed with Zod. Free-form model text does not directly trigger external actions. A primary decision contains:
-
-- One severity: green, yellow, orange, or red
-- Compact radar and forecast memory
-- Optional follow-up delay
-- Email subject and HTML body
-- Discord body
-- Alert-banner text
-
-The secondary decision contains one severity, compact D1–D5 memory, email content, and technical Discord content.
-
-### Retry-safe delivery
-
-```mermaid
-flowchart TD
-    START[Evidence run] --> KEY[Derive deterministic run ID]
-    KEY --> CACHE{Decision cached?}
-    CACHE -->|No| MODEL[Generate + validate decision]
-    MODEL --> SAVE[Cache decision for 30 days]
-    CACHE -->|Yes| ACTIONS
-    SAVE --> ACTIONS[Process actions in fixed order]
-    ACTIONS --> DONE{Action already done?}
-    DONE -->|Yes| NEXT[Skip action]
-    DONE -->|No| LOCK[Acquire expiring Redis lock]
-    LOCK --> EXECUTE[Execute action]
-    EXECUTE --> MARK[Mark done for 30 days]
-    MARK --> NEXT
-    NEXT --> ACTIONS
-```
-
-The decision and each delivery action use the same evidence-derived run ID. If a job fails after email but before Discord, a retry reuses the exact decision, skips the completed email action, and resumes at Discord.
-
-Locks expire after ten minutes so a crashed worker cannot block a run forever. Failed actions release their lock immediately.
-
-### Bounded I/O
-
-- Image fetches: 30-second deadline
-- Model availability probes: 15-second deadline
-- Rain and local APIs: 10-second deadline
-- gRPC delivery calls: 15-second deadline
-- AI decision generation: 120-second deadline
-- Uptime Kuma pushes: 10-second deadline
-- Rain-statistics scraping: three attempts with a 30-second request timeout
-
-### Failure behavior
-
-| Failure | Behavior |
+| Layer | Technology |
 | --- | --- |
-| Required radar unavailable | Fail job and schedule a primary retry during active hours |
-| Optional image unavailable | Continue with stored evidence when available |
-| S3 list failure | Fail explicitly; never treat it as an empty bucket |
-| Replacement upload failure | Preserve the previous object |
-| Partial S3 deletion | Fail with the per-object deletion error count |
-| Incomplete secondary image set | Remove staged images and do not generate a report |
-| Invalid external JSON | Reject the payload through runtime validation |
-| Email/Discord reports `success: false` | Fail that delivery action and retry safely |
-| Alert API reports `ok: false` | Fail the alert action and retry safely |
-| Redis unavailable | Fail rather than perform non-idempotent delivery |
-| Uptime push unavailable | Log the monitoring failure without repeating a successful report |
-
-## Data and storage model
-
-### Object-storage buckets
-
-The configured image sources currently use:
-
-| Bucket | Content | Required |
-| --- | --- | --- |
-| `radar-ppi-z` | IMD PPI-Z radar | Yes |
-| `radar-sri` | IMD surface-rainfall-intensity image | Yes |
-| `satellite` | Windy rain-accumulation screenshot | No |
-| `gfs` | Short-range GFS image | No |
-| `ecmwf` | Short-range ECMWF image | No |
-| `model-images` | Transactional D1–D5 GFS/ECMWF sets | Secondary pipeline |
-
-Primary buckets keep the latest successfully uploaded evidence. The replacement is uploaded first and the previous object is deleted only after upload success.
-
-### Redis keys
-
-| Key or prefix | Purpose |
-| --- | --- |
-| `latest_prev_status` | Compact primary weather memory |
-| `secondary_prev_status` | Compact D1–D5 outlook memory |
-| `latest_alert_banner` | Most recently delivered alert banner |
-| `mausam:morning-report:<date>` | Once-per-date morning completion marker |
-| `mausam:decision:<run-id>` | Validated decision cache |
-| `mausam:delivery:<run-id>:<action>` | Delivery lock and completion marker |
-
-Decision and delivery keys expire after 30 days. Active delivery locks expire after ten minutes.
-
-## Scheduling
-
-BullMQ uses Redis at `127.0.0.1:6379` by default.
-
-| Job | Schedule | Time zone | Purpose |
-| --- | --- | --- | --- |
-| Primary pipeline | `15 7 * * *` | Asia/Kolkata | Daily morning nowcast |
-| Secondary pipeline | `0 7 * * *` | Asia/Kolkata | Daily D1–D5 outlook |
-| Uptime heartbeat | `* * * * *` | Host cron cadence | Worker health signal |
-| Startup pipeline | Once per 30-minute startup window | — | Fresh report after service startup |
-| Delayed retry | Severity/failure dependent | Asia/Kolkata | Same-day follow-up |
-
-Delayed jobs are accepted only when their target remains on the same Mumbai calendar day and falls between 07:00 inclusive and 23:00 exclusive. Job IDs are derived from the target minute, and BullMQ deduplication coalesces primary follow-up requests even when their requested times differ. At most one follow-up remains pending; while a delayed job is active, repeated requests are reduced to one next job.
-
-On startup, the service removes only schedules created by the legacy repeat-job implementation and then idempotently upserts the current schedulers. It does not obliterate the queue or remove delayed work.
+| Runtime / language | [Bun](https://bun.sh/), TypeScript |
+| Job orchestration | [BullMQ](https://docs.bullmq.io/) on Redis |
+| AI / structured output | [LangChain](https://js.langchain.com/) (`@langchain/openai`), Zod |
+| Models (configured) | `gpt-5.6-sol` (primary), `gpt-5.6-terra` (secondary) via OpenAI-compatible provider |
+| Image processing | [Sharp](https://sharp.pixelplumbing.com/) |
+| Browser capture | [Puppeteer](https://pptr.dev/) (Windy / model pages) |
+| Object storage | AWS SDK S3 client against S3-compatible endpoints (e.g. Cloudflare R2) |
+| Delivery RPC | gRPC (`@grpc/grpc-js`) — mailer + Discord webhook protos |
+| HTTP clients | `fetch` / [Axios](https://axios-http.com/) where used; Cheerio for rain-stats HTML |
+| Config validation | Zod-backed `src/config.ts` |
+| Testing | `bun:test` (46 tests across 18 files) |
+| Host process (macOS) | launchd plist in `launchd/` |
 
 ## Project structure
 
 ```text
 .
-├── index.ts                         # Service entrypoint
-├── launchd/                         # macOS service definition
+├── index.ts                         # Entrypoint: starts the orchestrator
+├── launchd/
+│   └── com.mausam3.orchestrator.plist  # macOS KeepAlive service definition
 ├── src/
-│   ├── config.ts                    # Runtime configuration validation
+│   ├── config.ts                    # Required env validation
 │   ├── pipeline.ts                  # Primary nowcast orchestration
-│   ├── secondaryPipeline.ts         # Transactional D1-D5 orchestration
+│   ├── secondaryPipeline.ts         # Transactional D1–D5 orchestration
 │   ├── ai/
-│   │   ├── agents/                  # Structured decision generation
-│   │   ├── decision-cache.ts        # Stable decisions across retries
-│   │   ├── delivery-idempotency.ts  # Per-channel exactly-once guard
-│   │   └── tools/                   # Email, Discord, alert, and state actions
+│   │   ├── agents/                  # Prompts, models, primary/secondary agents
+│   │   ├── decision-cache.ts        # Redis decision cache (30-day TTL)
+│   │   ├── delivery-idempotency.ts  # Per-action locks + completion markers
+│   │   └── tools/                   # Email, Discord, alert, status, schedule tools
 │   ├── bull/
-│   │   ├── active-hours.ts          # Mumbai scheduling policy
 │   │   ├── queue.ts                 # Side-effect-free queue definitions
+│   │   ├── orchestrator.ts          # Schedulers, worker, graceful shutdown
 │   │   ├── scheduleJobs.ts          # Deduplicated delayed jobs
-│   │   └── orchestrator.ts          # Schedulers, worker, shutdown
-│   ├── data/                         # Radar, Windy, rain, and local inputs
-│   ├── grpc/                         # Mailer and Discord clients/protos
-│   ├── pipeline/helpers/             # Ingestion and saved-image assembly
-│   ├── scrape/                       # Rain-statistics scraper
-│   └── storage/s3/                   # S3 client, upload, list, and delete logic
+│   │   └── active-hours.ts          # 07:00–23:00 IST same-day policy
+│   ├── data/                        # Radar, Windy, rain stations, local weather
+│   ├── pipeline/helpers/            # Ingestion + saved-image assembly
+│   ├── scrape/rainStats/            # Rain-statistics HTML scraper
+│   ├── grpc/                        # Protos and mailer/Discord clients
+│   └── storage/s3/                  # S3 client, upload, list, delete
 ├── .env.example                     # Configuration template
 ├── package.json
 ├── tsconfig.json
 └── LICENSE                          # GNU AGPL v3 or later
 ```
 
-Tests live beside the modules they exercise and use Bun's built-in test runner.
+Tests live beside the modules they exercise (e.g. `are-same.test.ts`, `delivery-idempotency.test.ts`).
 
 ## Requirements
 
-- macOS or Linux
-- [Bun](https://bun.sh/) 1.3 or newer
-- Redis 6 or newer
-- S3-compatible object storage and the buckets listed above
-- An OpenAI-compatible model available through LangChain
-- Chromium installed through Puppeteer's managed browser setup
-- A compatible Mailer gRPC service
-- A compatible Discord Webhook gRPC service
-- Optional local weather and alert HTTP services
+- macOS or Linux host
+- [Bun](https://bun.sh/) (project targets Bun APIs such as `Bun.redis`, `Bun.hash`, `Bun.file`)
+- Redis reachable at `REDIS_HOST` / `REDIS_PORT` (defaults `127.0.0.1:6379`)
+- S3-compatible object storage with buckets: `radar-ppi-z`, `radar-sri`, `satellite`, `gfs`, `ecmwf`, `model-images`
+- OpenAI-compatible API key (`OPENAI_API_KEY`) for the configured LangChain models
+- Chromium via Puppeteer’s managed browser (for Windy screenshots)
+- Mailer gRPC service and Discord webhook gRPC service
+- HTTP endpoints for local weather, local alert, rain-stats page, and Uptime Kuma push URLs
+- Outbound network access to IMD radar, Windy, Tropical Tidbits, and rain APIs
 
-The included launchd configuration assumes Apple Silicon Homebrew Bun at `/opt/homebrew/bin/bun` and the repository at `/Users/aneeshpatne/code/mausam3.0`. Adjust those paths for another machine.
+The included launchd unit assumes Apple Silicon Homebrew Bun at `/opt/homebrew/bin/bun` and working directory `/Users/aneeshpatne/code/mausam3.0`. Adjust paths for other machines. There is no mobile app or simulator target; this is a headless server process.
 
-## Configuration
+## Getting started
 
-Copy the template and fill every required value:
+1. **Clone and enter the repository**
 
 ```bash
-cp .env.example .env
+git clone <repository-url> mausam3.0
+cd mausam3.0
 ```
 
-Bun loads `.env` automatically.
-
-### Required variables
-
-| Variable | Description |
-| --- | --- |
-| `OPENAI_API_KEY` | Model-provider credential used by LangChain |
-| `ENDPOINT_URL` | S3-compatible API endpoint |
-| `aws_access_key_id` | S3 access-key ID |
-| `aws_secret_access_key` | S3 secret access key |
-| `R2_PUBLIC_BASE_URL` | Public base URL from which the model can read images |
-| `MAIL_RECIPIENTS` | Comma-separated email recipients |
-| `LOCAL_WEATHER_URL` | Local-station JSON endpoint |
-| `LOCAL_ALERT_URL` | Local alert-controller endpoint |
-| `RAIN_STATS_URL` | HTML page used by the rain-statistics scraper |
-| `UPTIME_KUMA_PUSH_URL` | Minute heartbeat push URL |
-| `AI_JOB_PUSH_URL` | Successful primary-run push URL |
-
-### Optional variables
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `REDIS_HOST` | `127.0.0.1` | BullMQ Redis host |
-| `REDIS_PORT` | `6379` | BullMQ Redis port |
-| `MAILER_GRPC_ADDRESS` | `localhost:50055` | Mailer service address |
-| `DISCORD_WEBHOOK_GRPC_ADDRESS` | `localhost:50051` | Discord service address |
-| `DISCORD_CHANNEL_NAME` | `weather` | Destination channel alias |
-
-Configuration is validated before schedulers or workers start. Errors identify the missing or invalid variable but never log its value.
-
-## Installation and operation
-
-### Install dependencies
+2. **Install dependencies**
 
 ```bash
 bun install
 ```
 
-### Verify dependencies
+3. **Configure environment**
 
-Before starting Mausam, ensure Redis and the two gRPC services are reachable and that every S3 bucket exists.
+```bash
+cp .env.example .env
+```
 
-### Start the service
+Fill every required value. Bun loads `.env` automatically.
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENAI_API_KEY` | Model provider credential |
+| `ENDPOINT_URL` | S3-compatible API endpoint |
+| `aws_access_key_id` / `aws_secret_access_key` | Object-storage credentials |
+| `R2_PUBLIC_BASE_URL` | Public base URL for images readable by the model |
+| `MAIL_RECIPIENTS` | Comma-separated email recipients |
+| `LOCAL_WEATHER_URL` | Local-station JSON endpoint |
+| `LOCAL_ALERT_URL` | Local alert controller endpoint |
+| `RAIN_STATS_URL` | HTML page for the rain-statistics scraper |
+| `UPTIME_KUMA_PUSH_URL` | Minute heartbeat push URL |
+| `AI_JOB_PUSH_URL` | Successful primary-run push URL |
+| `REDIS_HOST` / `REDIS_PORT` | Optional; default `127.0.0.1:6379` |
+| `MAILER_GRPC_ADDRESS` | Optional; default `localhost:50055` |
+| `DISCORD_WEBHOOK_GRPC_ADDRESS` | Optional; default `localhost:50051` |
+| `DISCORD_CHANNEL_NAME` | Optional; default `weather` |
+
+4. **Verify dependencies**
+
+Ensure Redis, both gRPC services, and the S3 buckets exist and are reachable before starting.
+
+5. **Start the service**
 
 ```bash
 bun start
 ```
 
-This starts the scheduler and worker, installs or updates repeat schedules, and enqueues one deduplicated startup run.
+This validates config, obliterates and reinstalls `weather_queue` schedules, enqueues a startup primary run, and begins processing jobs.
 
-### Run under launchd
+6. **Optional: run under launchd**
 
-The repository includes `launchd/com.mausam3.orchestrator.plist`. After adjusting paths and environment-specific values, install it under `~/Library/LaunchAgents/` and load it with `launchctl`.
+Install `launchd/com.mausam3.orchestrator.plist` under `~/Library/LaunchAgents/` after editing paths, then load it with `launchctl`. Logs default to `/tmp/mausam3.orchestrator.out.log` and `/tmp/mausam3.orchestrator.err.log`.
 
-The service handles `SIGTERM` and `SIGINT` by closing the BullMQ worker and queue, gRPC clients, S3 client, and Redis client.
+> [!IMPORTANT]
+> Replace every placeholder in `.env` before real operation. Do not commit real API keys, recipient lists, monitor tokens, or private endpoints. The launchd plist ships with local gRPC addresses suitable only for trusted local networking.
 
-### Stop foreground execution
+### Stop
 
-Press `Ctrl-C`. Active work is allowed to close through the graceful-shutdown path.
+Press `Ctrl-C` in the foreground process. The orchestrator closes the BullMQ worker and queue, gRPC clients, S3 client, and Redis client on `SIGTERM` / `SIGINT`.
 
-## Testing
+## Running tests
 
-Run the complete suite:
+Command-line (canonical for this repo):
 
 ```bash
 bun test
 ```
 
-Run strict TypeScript validation:
+Typecheck:
 
 ```bash
 bun run typecheck
 ```
 
-Run coverage:
+Coverage:
 
 ```bash
 bun test --coverage
 ```
 
-The suite covers URL/run selection, Mumbai active hours, source routing, optional-source behavior, saved-image assembly, decision caching, delivery idempotency, email sanitization, perceptual image comparison, storage replacement ordering, and Puppeteer cleanup.
+The suite covers model-run URL selection, Mumbai active hours, optional-source ingestion, saved-image assembly, decision caching, delivery idempotency, email sanitization, buffer equality, storage replacement ordering, and Puppeteer cleanup. As of the last local run: **46 pass, 0 fail** across 18 files.
 
-## Troubleshooting
+## Roadmap
 
-### The service exits during startup
-
-Read the named configuration error and compare `.env` with `.env.example`. Startup validation intentionally stops before queue initialization when required configuration is missing.
-
-### Redis connection is refused
-
-Confirm Redis is running and check `REDIS_HOST` and `REDIS_PORT`:
-
-```bash
-redis-cli PING
-```
-
-Expected response: `PONG`.
-
-### The pipeline repeatedly reports missing required images
-
-Check upstream IMD reachability, S3 credentials, bucket existence, and `R2_PUBLIC_BASE_URL`. Required radar failure aborts the run; optional Windy or model failure does not.
-
-### Model images upload but analysis fails
-
-The public image URLs must be reachable by the model provider. S3 API access alone is insufficient. Verify the generated public URL without exposing credentials.
-
-### Secondary reports never send
-
-The secondary pipeline requires one complete GFS run and one complete ECMWF run with all five frames. During publication, it may defer until the next retry rather than mix model initializations.
-
-### Email or Discord keeps retrying
-
-Check the corresponding gRPC service. Successful channels are marked complete and will not be resent; only the incomplete action resumes.
-
-### Puppeteer cannot launch Chromium
-
-Install Puppeteer's managed browser and confirm the service account can execute it. On a headless host, verify compatible system libraries are present.
-
-## Security and privacy
-
-- Never commit `.env`, access keys, recipient lists, monitor tokens, or private endpoints.
-- Rotate any credential that appears in logs, shell history, or source control.
-- Keep Redis and the gRPC services bound to trusted interfaces unless transport security and authentication are configured.
-- The bundled gRPC defaults use insecure local channels and are appropriate only for trusted local networking.
-- Email HTML is sanitized for scripts, event handlers, and executable URL schemes before delivery.
-- Image URLs supplied to the model are public by design; do not store private imagery in these buckets.
-- Model output is untrusted data. Zod validation and application-controlled side effects form the enforcement boundary.
-- Review upstream-source terms before redistributing imagery.
-
-## Contributing
-
-Contributions should preserve the project's core invariants:
-
-1. Do not introduce side effects at module-import time.
-2. Never delete the only complete evidence set before replacement succeeds.
-3. Keep model output structured and external actions application-controlled.
-4. Make every retryable outward action idempotent.
-5. Add bounded timeouts to all external I/O.
-6. Use Mumbai time explicitly for product scheduling rules.
-7. Use Bun commands and `bun:test` throughout the repository.
-8. Add or update tests with every behavioral change.
-
-Before opening a change, run:
-
-```bash
-bun test
-bun run typecheck
-git diff --check
-```
+- Soften or replace queue obliteration on startup so delayed follow-ups survive process restarts
+- Harden secondary run acquisition against upstream timeouts (recent queue failures show secondary jobs timing out during model-image staging)
+- Improve mailer gRPC resilience when the local mailer is slow or down (`DEADLINE_EXCEEDED` after 15s appears in failed delayed jobs)
+- Expand rain-station coverage beyond the two currently configured IDs
+- Consider non-hash change detection if hash-identical JPEG noise ever proves too strict or too loose in production
 
 ## License
 
 Mausam 3.0 is licensed under the **GNU Affero General Public License, version 3 or any later version** (`AGPL-3.0-or-later`). See [LICENSE](./LICENSE).
 
-The AGPL is a strong copyleft license. In practical terms, if you distribute a modified version, or operate a modified version for users over a network, you must make the corresponding source available under the same license, subject to the complete license terms—especially section 13 for remote network interaction.
+AGPL is a strong copyleft license. In practical terms, if you distribute a modified version, or run a modified version for users over a network, you must make the corresponding source available under the same license, subject to the full license text—especially section 13 for remote network interaction.
 
-This README is a plain-language project description, not legal advice. The complete license terms control.
+This README is a project description, not legal advice. The complete license terms control.
 
-Copyright © 2026 Mausam contributors.
+---
+
+<div align="center">
+  Built with Bun, BullMQ, LangChain, and a bias toward evidence that changed since the last report.
+</div>
