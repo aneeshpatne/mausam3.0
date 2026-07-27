@@ -349,7 +349,7 @@ BullMQ uses Redis at `127.0.0.1:6379` by default.
 | Startup pipeline | Once per 30-minute startup window | — | Fresh report after service startup |
 | Delayed retry | Severity/failure dependent | Asia/Kolkata | Same-day follow-up |
 
-Delayed jobs are accepted only when their target remains on the same Mumbai calendar day and falls between 07:00 inclusive and 23:00 exclusive. Job IDs are derived from the target minute to suppress duplicates.
+Delayed jobs are accepted only when their target remains on the same Mumbai calendar day and falls between 07:00 inclusive and 23:00 exclusive. Job IDs are derived from the target minute, and BullMQ deduplication coalesces primary follow-up requests even when their requested times differ. At most one follow-up remains pending; while a delayed job is active, repeated requests are reduced to one next job.
 
 On startup, the service removes only schedules created by the legacy repeat-job implementation and then idempotently upserts the current schedulers. It does not obliterate the queue or remove delayed work.
 
