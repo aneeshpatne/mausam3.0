@@ -9,7 +9,8 @@ An automated nowcast and five-day outlook pipeline for Mumbai and the Mumbai Met
 [![Runtime: Bun](https://img.shields.io/badge/runtime-Bun-14151a)](https://bun.sh)
 [![Language: TypeScript](https://img.shields.io/badge/language-TypeScript-3178c6)](https://www.typescriptlang.org/)
 [![Queue: BullMQ](https://img.shields.io/badge/queue-BullMQ-blue)](https://docs.bullmq.io/)
-[![Tests: 46 passing](https://img.shields.io/badge/tests-46%20passing-brightgreen)](#running-tests)
+[![Reports: 392](https://img.shields.io/badge/reports-392-0e7a0d)](#production-metrics)
+[![Tests: 47 passing](https://img.shields.io/badge/tests-47%20passing-brightgreen)](#running-tests)
 [![License: AGPL v3+](https://img.shields.io/badge/license-AGPL--3.0--or--later-663399)](./LICENSE)
 
 </div>
@@ -37,34 +38,44 @@ The service is a long-running [Bun](https://bun.sh/) process orchestrated by [Bu
 | **Multi-channel delivery** | Primary order: save status → optional follow-up schedule → email → Discord → local alert. Secondary order: save status → email → Discord. Each action is locked and marked complete for 30 days. |
 | **Mumbai scheduling** | Delayed follow-ups only fire same-day between 07:00 inclusive and 23:00 exclusive IST. Primary delayed jobs coalesce under a single deduplication ID so at most one follow-up stays pending. |
 | **Severity-aware timing** | Follow-up delay windows are enforced by severity: red 2–3h, orange 3–6h, yellow 3–10h, green 8–12h (or null when no same-day update is useful). |
-| **Evidence storage** | S3-compatible buckets hold the latest JPEG evidence per source. Direct images are resized to 800×800 cover at JPEG quality 20; Windy screenshots use a 1280×720 viewport at quality 80. |
+| **Evidence storage** | S3-compatible primary-source buckets retain the two latest JPEG frames and supply them to the model oldest-to-newest with capture times. Direct images are resized to 800×800 cover at JPEG quality 20; Windy screenshots use a 1280×720 viewport at quality 80. |
 | **Health signals** | Minute Uptime Kuma heartbeats plus a successful primary-run push URL. External I/O uses bounded timeouts (images 30s, model 120s, gRPC 15s, monitoring 10s). |
 
 > [!NOTE]
 > **Status as of the current codebase**
 >
-> - **Complete:** primary and secondary pipelines, image ingestion with optional-source tolerance, decision cache, delivery idempotency, BullMQ schedules, launchd plist, and a 46-test suite (`bun test`).
+> - **Complete:** primary and secondary pipelines, image ingestion with optional-source tolerance, decision cache, delivery idempotency, BullMQ schedules, launchd plist, and a 47-test suite (`bun test`).
 > - **Operational dependency:** email and Discord require external gRPC services (`MAILER_GRPC_ADDRESS`, `DISCORD_WEBHOOK_GRPC_ADDRESS`). Local weather/alert HTTP endpoints and rain-stats HTML are required at config validation time.
 > - **Startup behavior:** `startOrchestrator()` currently **obliterates** `weather_queue` on every start, then reinstalls schedulers and enqueues a startup primary run. Delayed work that existed before restart is not preserved across process restarts.
 > - **Station coverage:** rain context is built from two configured stations (Borivali, Kandivali East) plus scraped rain statistics; station failures are non-fatal and omitted from the prompt.
 
-### Operational snapshot
+### Production metrics
 
-Point-in-time values from the live Redis-backed `weather_queue` and status keys on this host (captured 2026-07-27 ~17:32 IST). These will change as the service runs.
+This monsoon’s run on this host, from **24 Jun 2026** (the day after IMD declared onset over Mumbai) through **25 Aug 2026**. Live queue and cache values captured 2026-08-25 ~17:36 IST.
 
 | Metric | Value |
 | --- | --- |
-| Queue counts | waiting 0 · active 0 · delayed 4 · completed 10 · failed 50 · schedulers 3 |
-| Next primary | 2026-07-28 07:15 IST (`daily-weather-pipeline`) |
-| Next secondary | 2026-07-28 07:00 IST (`daily-secondary-pipeline`) |
-| Next delayed follow-up | 2026-07-27 20:19 IST (`delayed-weather-pipeline`, 3h delay) |
-| Current primary alert | **yellow** — intermittent showers possible this evening |
-| Current primary memory | Radar ~16:47 IST; scattered weak–moderate Mumbai–Thane–Navi Mumbai–Panvel; iso stronger Raigad |
-| Current secondary peak | **orange** — D1–D5 outlook with tentative Jul 30 peak disputed between GFS/ECMWF |
-| Alert banner | `Intermittent showers possible this evening` (yellow) |
-| Morning markers | `2026-07-26` and `2026-07-27` both `done` |
-| Decision / delivery keys | ~87 cached decisions · ~386 delivery markers under `mausam:*` |
-| Recent non-uptime failures | Secondary timeout (27 Jul 07:02); mailer gRPC `DEADLINE_EXCEEDED` on delayed primary runs (25–26 Jul) |
+| Days in production this monsoon | **63** (24 Jun – 25 Aug 2026) |
+| Reports delivered | **392** (343 primary nowcasts · 49 secondary D1–D5 outlooks) |
+| Emails sent | **390** to 2 recipients |
+| Discord messages | **390** |
+| Local alerts | **336** (primary only) |
+| Follow-ups scheduled | **272** |
+| Severity mix | yellow 297 (76%) · orange 89 (23%) · green 6 (2%) · red 0 |
+| Average cadence | ~6 reports/day (≈5 nowcasts + 1 outlook) |
+| Current process up since | 2026-08-21 11:17 IST (queue is obliterated on every start) |
+
+| Live snapshot | Value |
+| --- | --- |
+| Queue counts | waiting 0 · active 0 · delayed 4 · completed 10 · failed 32 · schedulers 3 |
+| Next primary | 2026-08-26 07:15 IST (`daily-weather-pipeline`) |
+| Next secondary | 2026-08-26 07:00 IST (`daily-secondary-pipeline`) |
+| Next delayed follow-up | 2026-08-25 21:18 IST (`delayed-weather-pipeline`, 4h delay) |
+| Current primary alert | **yellow** — Borivali: light showers possible this evening |
+| Current primary memory | Radar ~13:51 IST (stale); Borivali weak/patchy light echoes, no strong core; Mumbai–Thane scattered weak; 0–1h dry, 1–6h light showers |
+| Current secondary peak | **yellow** — D1–D5 EC wetter than GFS across MMR/coast, confidence low–med |
+| Alert banner | `Borivali: Light showers possible this evening` (yellow) |
+| Morning markers | `2026-08-24` and `2026-08-25` both `done` |
 
 ## From input to result
 
@@ -183,7 +194,7 @@ Architectural conventions that appear in the code:
 | Delivery RPC | gRPC (`@grpc/grpc-js`) — mailer + Discord webhook protos |
 | HTTP clients | `fetch` / [Axios](https://axios-http.com/) where used; Cheerio for rain-stats HTML |
 | Config validation | Zod-backed `src/config.ts` |
-| Testing | `bun:test` (46 tests across 18 files) |
+| Testing | `bun:test` (47 tests across 18 files) |
 | Host process (macOS) | launchd plist in `launchd/` |
 
 ## Project structure
@@ -317,7 +328,7 @@ Coverage:
 bun test --coverage
 ```
 
-The suite covers model-run URL selection, Mumbai active hours, optional-source ingestion, saved-image assembly, decision caching, delivery idempotency, email sanitization, buffer equality, storage replacement ordering, and Puppeteer cleanup. As of the last local run: **46 pass, 0 fail** across 18 files.
+The suite covers model-run URL selection, Mumbai active hours, optional-source ingestion, saved-image assembly, decision caching, delivery idempotency, email sanitization, buffer equality, storage replacement ordering, and Puppeteer cleanup. As of the last local run: **47 pass, 0 fail** across 18 files.
 
 ## Roadmap
 
