@@ -44,14 +44,31 @@ test("uses the exact bucket and object key in the public URL", async () => {
   );
 });
 
-test("deletes the previous object only after a successful replacement", async () => {
+test("retains the previous image and deletes only older history", async () => {
   const events: string[] = [];
+  let deletedKeys: string[] = [];
   const changed = await uploadWithLimit("radar", Buffer.from("new"), dependencies({
+    listObjects: async () => [
+      { Key: "oldest.jpeg", LastModified: new Date(1) },
+      { Key: "previous.jpeg", LastModified: new Date(2) },
+    ],
     put: async () => { events.push("put"); },
-    deleteObjects: async () => { events.push("delete"); },
+    deleteObjects: async (keys: string[]) => {
+      events.push("delete");
+      deletedKeys = keys;
+    },
   }));
   expect(changed).toBe(true);
   expect(events).toEqual(["put", "delete"]);
+  expect(deletedKeys).toEqual(["oldest.jpeg"]);
+});
+
+test("keeps the only existing image when uploading its replacement", async () => {
+  let deletedKeys: string[] = [];
+  await uploadWithLimit("radar", Buffer.from("new"), dependencies({
+    deleteObjects: async (keys: string[]) => { deletedKeys = keys; },
+  }));
+  expect(deletedKeys).toEqual([]);
 });
 
 test("does not delete old data when replacement upload fails", async () => {

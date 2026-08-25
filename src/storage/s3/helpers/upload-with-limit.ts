@@ -58,7 +58,7 @@ export async function uploadWithLimit(
     console.log(`[s3:upload] ${bucketName} image changed. Uploading new image.`);
     await dependencies.put(bucketName, key, imageBuffer);
     const toBeDeleted = bucket
-      .slice(0)
+      .slice(0, -1)
       .map((item) => item.Key)
       .filter((key): key is string => key !== undefined);
     await dependencies.deleteObjects(toBeDeleted, bucketName);
