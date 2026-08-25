@@ -6,9 +6,15 @@ describe("weather agent locality guidance", () => {
     expect(MUMBAI_LOCALITY_GUIDANCE).toContain(
       "prefer named Mumbai/MMR localities over vague directions",
     );
+    expect(MUMBAI_LOCALITY_GUIDANCE).toContain(
+      "Borivali is the alert target",
+    );
     expect(MUMBAI_LOCALITY_GUIDANCE).toContain("best-effort locality names");
     expect(MUMBAI_LOCALITY_GUIDANCE).toContain("do not rely on a fixed example list");
     expect(MUMBAI_LOCALITY_GUIDANCE).toContain("western pockets");
     expect(MUMBAI_LOCALITY_GUIDANCE).toContain("secondary context");
+    expect(MUMBAI_LOCALITY_GUIDANCE).toContain(
+      "Never transfer severity from another locality to Borivali",
+    );
   });
 });

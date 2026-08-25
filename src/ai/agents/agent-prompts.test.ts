@@ -16,15 +16,33 @@ describe("primary agent prompt", () => {
 
     expect(prompt).toStartWith("# Identity");
     expect(prompt).toContain(
-      "current radar and measured observations, then GFS/ECMWF",
+      "current radar over Borivali and measured Borivali observations",
     );
     expect(prompt).toContain("zero, missing, or stale values");
+    expect(prompt).toContain(
+      "When a source has previous and latest frames, they appear in that order",
+    );
     expect(prompt).toContain("agreement or disagreement materially changes");
     expect(prompt).toContain("must not override current or next-6-hour evidence");
-    expect(prompt).toContain("Morning mode prioritizes the commute");
+    expect(prompt).toContain("user's Borivali commute");
     expect(prompt).toContain("Never schedule a next-day run");
     expect(prompt).toContain("token-minimal LLM-only radar memory");
-    expect(prompt).toContain("grug-style timing");
+    expect(prompt).toContain("now to +1 hour, +1 to +3 hours, and +3 to +6 hours");
+    expect(prompt).toContain(
+      "A single current radar frame supports position and intensity, not motion",
+    );
+    expect(prompt).toContain(
+      "Do not use the highest severity elsewhere in Mumbai/MMR",
+    );
+    expect(prompt).toContain(
+      "Every primary output and scheduling decision must use this Borivali-specific color",
+    );
+    expect(prompt).toContain(
+      "Cover 0-1h, 1-3h, and 3-6h with intensity, likelihood, confidence",
+    );
+    expect(prompt).toContain(
+      "alert_banner: plain language, no more than 7 words, explicitly identifying Borivali",
+    );
     expect(prompt).toContain("<mode>morning</mode>");
     expect(prompt).toContain(
       "<image_order>PPI-Z radar | SRI rainfall estimate</image_order>",
