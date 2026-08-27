@@ -28,13 +28,13 @@ test("routes direct and screenshot sources to the correct image loader", async (
   };
   const gfs: WeatherImage = {
     kind: "direct",
-    url: "https://www.example.com/analysis/models/gfs/{RUN_ID}/gfs_mslp_pcpn_india_2.png",
+    url: "https://example.com/gfs/{RUN_ID}.png",
     bucketName: "gfs",
     required: false,
   };
   const ecmwf: WeatherImage = {
     kind: "direct",
-    url: "https://www.example.com/analysis/models/ecmwf/{RUN_ID}/ecmwf_mslp_pcpn_india_2.png",
+    url: "https://example.com/ecmwf/{RUN_ID}.png",
     bucketName: "ecmwf",
     required: false,
   };
@@ -48,8 +48,8 @@ test("routes direct and screenshot sources to the correct image loader", async (
   expect(calls).toEqual([
     "direct:https://example.com/radar.gif",
     "screenshot:https://example.com/map",
-    "direct:https://www.example.com/analysis/models/gfs/{RUN_ID}/gfs_mslp_pcpn_india_2.png",
-    "direct:https://www.example.com/analysis/models/ecmwf/{RUN_ID}/ecmwf_mslp_pcpn_india_2.png",
+    "direct:https://example.com/gfs/{RUN_ID}.png",
+    "direct:https://example.com/ecmwf/{RUN_ID}.png",
   ]);
 });
 

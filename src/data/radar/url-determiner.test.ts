@@ -1,9 +1,22 @@
 import { expect, test } from "bun:test";
 import {
+  buildTropicalTidbitsUrl,
+  ECMWF_CONFIG,
+  GFS_CONFIG,
+} from "./source";
+import {
   determineGfsUrls,
   ecmwfUrlDeterminer,
   urlDeterminer,
 } from "./url-determiner";
+
+function gfsUrl(runId: string, frame = 2): string {
+  return buildTropicalTidbitsUrl(GFS_CONFIG, runId, frame);
+}
+
+function ecmwfUrl(runId: string, frame = 2): string {
+  return buildTropicalTidbitsUrl(ECMWF_CONFIG, runId, frame);
+}
 
 function makeFetch(statusByUrl: Record<string, number>) {
   const calls: Array<{ method: string; url: string }> = [];
@@ -21,8 +34,7 @@ function makeFetch(statusByUrl: Record<string, number>) {
 }
 
 test("uses the previous day's 18Z run before 00Z cooldown expires", async () => {
-  const expectedUrl =
-    "https://www.example.com/analysis/models/gfs/2026070318/gfs_mslp_pcpn_india_2.png";
+  const expectedUrl = gfsUrl("2026070318");
   const { calls, fetchImpl } = makeFetch({ [expectedUrl]: 200 });
 
   await expect(
@@ -32,8 +44,7 @@ test("uses the previous day's 18Z run before 00Z cooldown expires", async () => 
 });
 
 test("uses the 00Z run once the cooldown expires", async () => {
-  const expectedUrl =
-    "https://www.example.com/analysis/models/gfs/2026070400/gfs_mslp_pcpn_india_2.png";
+  const expectedUrl = gfsUrl("2026070400");
   const { calls, fetchImpl } = makeFetch({ [expectedUrl]: 200 });
 
   await expect(
@@ -43,8 +54,7 @@ test("uses the 00Z run once the cooldown expires", async () => {
 });
 
 test("uses the 12Z run for the July 4, 2026 7:37 PM IST example", async () => {
-  const expectedUrl =
-    "https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_2.png";
+  const expectedUrl = gfsUrl("2026070412");
   const { calls, fetchImpl } = makeFetch({ [expectedUrl]: 200 });
 
   await expect(
@@ -54,8 +64,7 @@ test("uses the 12Z run for the July 4, 2026 7:37 PM IST example", async () => {
 });
 
 test("uses the 18Z run once its cooldown expires", async () => {
-  const expectedUrl =
-    "https://www.example.com/analysis/models/gfs/2026070418/gfs_mslp_pcpn_india_2.png";
+  const expectedUrl = gfsUrl("2026070418");
   const { calls, fetchImpl } = makeFetch({ [expectedUrl]: 200 });
 
   await expect(
@@ -65,10 +74,8 @@ test("uses the 18Z run once its cooldown expires", async () => {
 });
 
 test("falls back one run when the latest eligible URL returns 404", async () => {
-  const latestUrl =
-    "https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_2.png";
-  const previousUrl =
-    "https://www.example.com/analysis/models/gfs/2026070406/gfs_mslp_pcpn_india_2.png";
+  const latestUrl = gfsUrl("2026070412");
+  const previousUrl = gfsUrl("2026070406");
   const { calls, fetchImpl } = makeFetch({
     [latestUrl]: 404,
     [previousUrl]: 200,
@@ -84,8 +91,7 @@ test("falls back one run when the latest eligible URL returns 404", async () => 
 });
 
 test("throws when the latest eligible URL returns a non-404 error", async () => {
-  const latestUrl =
-    "https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_2.png";
+  const latestUrl = gfsUrl("2026070412");
   const { fetchImpl } = makeFetch({ [latestUrl]: 500 });
 
   await expect(
@@ -94,10 +100,8 @@ test("throws when the latest eligible URL returns a non-404 error", async () => 
 });
 
 test("throws when both the latest and previous runs return 404", async () => {
-  const latestUrl =
-    "https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_2.png";
-  const previousUrl =
-    "https://www.example.com/analysis/models/gfs/2026070406/gfs_mslp_pcpn_india_2.png";
+  const latestUrl = gfsUrl("2026070412");
+  const previousUrl = gfsUrl("2026070406");
   const { fetchImpl } = makeFetch({
     [latestUrl]: 404,
     [previousUrl]: 404,
@@ -109,8 +113,7 @@ test("throws when both the latest and previous runs return 404", async () => {
 });
 
 test("uses the latest eligible ECMWF run", async () => {
-  const expectedUrl =
-    "https://www.example.com/analysis/models/ecmwf/2026070412/ecmwf_mslp_pcpn_india_2.png";
+  const expectedUrl = ecmwfUrl("2026070412");
   const { calls, fetchImpl } = makeFetch({ [expectedUrl]: 200 });
 
   await expect(
@@ -120,10 +123,8 @@ test("uses the latest eligible ECMWF run", async () => {
 });
 
 test("falls back one ECMWF run when the latest eligible URL returns 404", async () => {
-  const latestUrl =
-    "https://www.example.com/analysis/models/ecmwf/2026070412/ecmwf_mslp_pcpn_india_2.png";
-  const previousUrl =
-    "https://www.example.com/analysis/models/ecmwf/2026070406/ecmwf_mslp_pcpn_india_2.png";
+  const latestUrl = ecmwfUrl("2026070412");
+  const previousUrl = ecmwfUrl("2026070406");
   const { calls, fetchImpl } = makeFetch({
     [latestUrl]: 404,
     [previousUrl]: 200,
@@ -139,8 +140,7 @@ test("falls back one ECMWF run when the latest eligible URL returns 404", async 
 });
 
 test("throws when the latest eligible ECMWF URL returns a non-404 error", async () => {
-  const latestUrl =
-    "https://www.example.com/analysis/models/ecmwf/2026070412/ecmwf_mslp_pcpn_india_2.png";
+  const latestUrl = ecmwfUrl("2026070412");
   const { fetchImpl } = makeFetch({ [latestUrl]: 500 });
 
   await expect(
@@ -149,10 +149,8 @@ test("throws when the latest eligible ECMWF URL returns a non-404 error", async 
 });
 
 test("throws when both the latest and previous ECMWF runs return 404", async () => {
-  const latestUrl =
-    "https://www.example.com/analysis/models/ecmwf/2026070412/ecmwf_mslp_pcpn_india_2.png";
-  const previousUrl =
-    "https://www.example.com/analysis/models/ecmwf/2026070406/ecmwf_mslp_pcpn_india_2.png";
+  const latestUrl = ecmwfUrl("2026070412");
+  const previousUrl = ecmwfUrl("2026070406");
   const { fetchImpl } = makeFetch({
     [latestUrl]: 404,
     [previousUrl]: 404,
@@ -165,8 +163,7 @@ test("throws when both the latest and previous ECMWF runs return 404", async () 
 
 test("selects one complete run for every requested model frame", async () => {
   const frames = [8, 16] as const;
-  const latestFrame16 =
-    "https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_16.png";
+  const latestFrame16 = gfsUrl("2026070412", 16);
   const { fetchImpl } = makeFetch({ [latestFrame16]: 404 });
 
   const urls = await determineGfsUrls(
@@ -175,7 +172,7 @@ test("selects one complete run for every requested model frame", async () => {
     fetchImpl,
   );
   expect([...urls.values()]).toEqual([
-    "https://www.example.com/analysis/models/gfs/2026070406/gfs_mslp_pcpn_india_8.png",
-    "https://www.example.com/analysis/models/gfs/2026070406/gfs_mslp_pcpn_india_16.png",
+    gfsUrl("2026070406", 8),
+    gfsUrl("2026070406", 16),
   ]);
 });

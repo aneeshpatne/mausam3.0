@@ -16,19 +16,17 @@ const windy: WeatherImage = {
 };
 const gfs: WeatherImage = {
   kind: "direct",
-  url: "https://www.example.com/analysis/models/gfs/{RUN_ID}/gfs_mslp_pcpn_india_2.png",
+  url: "https://example.com/gfs/{RUN_ID}.png",
   bucketName: "gfs",
   required: false,
-  determineUrl: async () =>
-    "https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_2.png",
+  determineUrl: async () => "https://example.com/gfs/2026070412.png",
 };
 const ecmwf: WeatherImage = {
   kind: "direct",
-  url: "https://www.example.com/analysis/models/ecmwf/{RUN_ID}/ecmwf_mslp_pcpn_india_2.png",
+  url: "https://example.com/ecmwf/{RUN_ID}.png",
   bucketName: "ecmwf",
   required: false,
-  determineUrl: async () =>
-    "https://www.example.com/analysis/models/ecmwf/2026070412/ecmwf_mslp_pcpn_india_2.png",
+  determineUrl: async () => "https://example.com/ecmwf/2026070412.png",
 };
 
 test("uploads direct and optional images with the existing upload boundary", async () => {
@@ -44,8 +42,8 @@ test("uploads direct and optional images with the existing upload boundary", asy
   expect(uploads).toEqual([
     "radar:direct:https://example.com/radar.gif",
     "satellite:screenshot:https://example.com/windy",
-    "gfs:direct:https://www.example.com/analysis/models/gfs/2026070412/gfs_mslp_pcpn_india_2.png",
-    "ecmwf:direct:https://www.example.com/analysis/models/ecmwf/2026070412/ecmwf_mslp_pcpn_india_2.png",
+    "gfs:direct:https://example.com/gfs/2026070412.png",
+    "ecmwf:direct:https://example.com/ecmwf/2026070412.png",
   ]);
   expect(result.changedBuckets).toEqual(["radar", "satellite", "gfs", "ecmwf"]);
 });

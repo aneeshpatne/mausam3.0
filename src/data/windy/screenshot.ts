@@ -1,4 +1,5 @@
 import puppeteer from "puppeteer";
+import { isTropicalTidbitsUrl } from "../radar/source";
 
 export const WINDY_SCREENSHOT_WIDTH = 1280;
 export const WINDY_SCREENSHOT_HEIGHT = 720;
@@ -67,10 +68,6 @@ export async function captureWindyScreenshot(
   } finally {
     await browser.close();
   }
-}
-
-function isTropicalTidbitsUrl(url: string): boolean {
-  return new URL(url).hostname.endsWith("example.com");
 }
 
 async function waitForWindyRainAccumulation(

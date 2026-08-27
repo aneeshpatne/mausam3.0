@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { buildTropicalTidbitsUrl, GFS_CONFIG } from "../radar/source";
 import { captureWindyScreenshot } from "./screenshot";
 
 function makeBrowser(options: { screenshotError?: Error } = {}) {
@@ -48,16 +49,15 @@ test("captures the rendered Windy page and closes the browser", async () => {
 
 test("captures a Tropical Tidbits model page with the model wait path", async () => {
   const mock = makeBrowser();
+  const modelUrl = buildTropicalTidbitsUrl(GFS_CONFIG, "2026070412", 2);
   const result = await captureWindyScreenshot(
-    "https://www.example.com/analysis/models/?model=gfs&region=india&pkg=mslp_pcpn",
+    modelUrl,
     async () => mock.browser,
   );
 
   expect(result).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
   expect(mock.calls).toEqual(["goto", "canvas", "content", "screenshot"]);
-  expect(mock.gotoUrls).toEqual([
-    "https://www.example.com/analysis/models/?model=gfs&region=india&pkg=mslp_pcpn",
-  ]);
+  expect(mock.gotoUrls).toEqual([modelUrl]);
   expect(mock.wasClosed()).toBe(true);
 });
 

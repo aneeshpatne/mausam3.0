@@ -1,41 +1,20 @@
+import {
+  buildTropicalTidbitsUrl,
+  ECMWF_CONFIG,
+  GFS_CONFIG,
+  isTropicalTidbitsUrl,
+  TROPICAL_TIDBITS_REQUEST_HEADERS,
+  type TropicalTidbitsModelConfig,
+} from "./source";
+
 const TROPICAL_TIDBITS_RUN_HOURS = [0, 6, 12, 18] as const;
 const TROPICAL_TIDBITS_RUN_COOLDOWN_MS = 60 * 60 * 1000;
 const TROPICAL_TIDBITS_FRAME = 2;
-const TROPICAL_TIDBITS_REQUEST_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-  Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-  Referer: "https://www.example.com/analysis/models/",
-};
 
 type FetchLike = (
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
 ) => ReturnType<typeof fetch>;
-type TropicalTidbitsModel = "gfs" | "ecmwf";
-
-interface TropicalTidbitsModelConfig {
-  model: TropicalTidbitsModel;
-  filePrefix: string;
-}
-
-const GFS_CONFIG: TropicalTidbitsModelConfig = {
-  model: "gfs",
-  filePrefix: "gfs_mslp_pcpn_india",
-};
-
-const ECMWF_CONFIG: TropicalTidbitsModelConfig = {
-  model: "ecmwf",
-  filePrefix: "ecmwf_mslp_pcpn_india",
-};
-
-function buildTropicalTidbitsUrl(
-  config: TropicalTidbitsModelConfig,
-  runId: string,
-  frame = TROPICAL_TIDBITS_FRAME,
-): string {
-  return `https://www.example.com/analysis/models/${config.model}/${runId}/${config.filePrefix}_${frame}.png`;
-}
 
 function buildGfsUrl(runId: string, frame = TROPICAL_TIDBITS_FRAME): string {
   return buildTropicalTidbitsUrl(GFS_CONFIG, runId, frame);
@@ -77,7 +56,7 @@ function getLatestEligibleRunId(now: Date): string {
     }
   }
 
-  throw new Error("Unable to determine an eligible Tropical Tidbits run");
+  throw new Error("Unable to determine an eligible model run");
 }
 
 function getLatestEligibleGfsRunId(now: Date): string {
@@ -103,13 +82,15 @@ function formatRunId(run: Date): string {
 }
 
 async function assertAvailable(
-  model: TropicalTidbitsModel,
+  config: TropicalTidbitsModelConfig,
   url: string,
   fetchImpl: FetchLike,
 ): Promise<void> {
   const response = await fetchImpl(url, {
     method: "GET",
-    headers: TROPICAL_TIDBITS_REQUEST_HEADERS,
+    headers: isTropicalTidbitsUrl(url)
+      ? TROPICAL_TIDBITS_REQUEST_HEADERS
+      : undefined,
     signal: AbortSignal.timeout(15_000),
   });
 
@@ -119,7 +100,7 @@ async function assertAvailable(
 
   if (!response.ok) {
     throw new Error(
-      `${model.toUpperCase()} image probe failed with status ${response.status}`,
+      `${config.model.toUpperCase()} image probe failed with status ${response.status}`,
     );
   }
 }
@@ -134,7 +115,7 @@ async function determineTropicalTidbitsUrl(
   const latestUrl = buildTropicalTidbitsUrl(config, latestRunId, frame);
 
   try {
-    await assertAvailable(config.model, latestUrl, fetchImpl);
+    await assertAvailable(config, latestUrl, fetchImpl);
     return latestUrl;
   } catch (error) {
     if (!(error instanceof Error) || error.message !== "404") {
@@ -147,7 +128,7 @@ async function determineTropicalTidbitsUrl(
     getPreviousRunId(latestRunId),
     frame,
   );
-  await assertAvailable(config.model, previousUrl, fetchImpl);
+  await assertAvailable(config, previousUrl, fetchImpl);
   return previousUrl;
 }
 
@@ -161,10 +142,13 @@ async function determineTropicalTidbitsUrls(
   const candidates = [latestRunId, getPreviousRunId(latestRunId)];
   for (const runId of candidates) {
     const urls = new Map(
-      frames.map((frame) => [frame, buildTropicalTidbitsUrl(config, runId, frame)]),
+      frames.map((frame) => [
+        frame,
+        buildTropicalTidbitsUrl(config, runId, frame),
+      ]),
     );
     const results = await Promise.allSettled(
-      [...urls.values()].map((url) => assertAvailable(config.model, url, fetchImpl)),
+      [...urls.values()].map((url) => assertAvailable(config, url, fetchImpl)),
     );
     const non404Failure = results.find(
       (result) =>
