@@ -4,12 +4,12 @@
 
 **Weather updates for Mumbai that only fire when the evidence changes**
 
-An automated nowcast and five-day outlook pipeline for Mumbai and the Mumbai Metropolitan Region. It ingests radar, rain, local-station, and model imagery, produces a structured severity decision, and delivers email, Discord, and local alert reports on a Mumbai-aware schedule.
+An automated nowcast and five-day outlook pipeline for Mumbai and the Mumbai Metropolitan Region. It ingests five configured primary evidence sources, produces Zod-validated severity decisions, and delivers email, Discord, and local alert reports through one Redis-backed BullMQ queue with three recurring schedules. A dated production record documents 392 reports over 63 monsoon days.
 
 [![Runtime: Bun](https://img.shields.io/badge/runtime-Bun-14151a)](https://bun.sh)
 [![Language: TypeScript](https://img.shields.io/badge/language-TypeScript-3178c6)](https://www.typescriptlang.org/)
 [![Queue: BullMQ](https://img.shields.io/badge/queue-BullMQ-blue)](https://docs.bullmq.io/)
-[![Reports: 392](https://img.shields.io/badge/reports-392-0e7a0d)](#production-metrics)
+[![Reports: 392](https://img.shields.io/badge/reports-392-0e7a0d)](#observed-production-metrics)
 [![Tests: 47 passing](https://img.shields.io/badge/tests-47%20passing-brightgreen)](#running-tests)
 [![License: AGPL v3+](https://img.shields.io/badge/license-AGPL--3.0--or--later-663399)](./LICENSE)
 
@@ -19,7 +19,7 @@ An automated nowcast and five-day outlook pipeline for Mumbai and the Mumbai Met
 
 ## Overview
 
-Mausam 3.0 takes multi-source weather evidence for Mumbai MMR—IMD radar frames, rain-station observations, a local station feed, Windy accumulation screenshots, and GFS/ECMWF charts—and decides whether conditions have changed enough to justify a new report. When a report is required, a multimodal model returns a validated severity decision (green / yellow / orange / red) with layperson email HTML, a technical Discord message, and a short alert banner. The value is operational continuity: recipients get consistent updates when radar or context changes, not a flood of noise from every scheduled tick.
+Mausam 3.0 takes multi-source weather evidence for Mumbai MMR—IMD radar frames, rain-station observations, a local station feed, Windy accumulation screenshots, and GFS/ECMWF charts—and decides whether conditions have changed enough to justify a new report. The primary path has five configured image sources (two required radar feeds and three optional sources); the secondary path assembles ten forecast frames from two models across five horizons. When a report is required, a multimodal model returns a validated severity decision (green / yellow / orange / red) with layperson email HTML, a technical Discord message, and a short alert banner. The value is operational continuity: recipients get consistent updates when radar or context changes, not a flood of noise from every scheduled tick.
 
 The service is a long-running [Bun](https://bun.sh/) process orchestrated by [BullMQ](https://docs.bullmq.io/) on Redis. Evidence is normalized with Sharp, optional Windy frames are captured with Puppeteer, structured decisions are produced through LangChain + Zod, and side effects (status persistence, follow-up scheduling, email, Discord, local alert) run under Redis-backed decision caching and per-action idempotency locks. There is no interactive web UI; delivery surfaces are email, Discord, a local alert HTTP endpoint, and Uptime Kuma push monitors.
 
@@ -30,16 +30,16 @@ The service is a long-running [Bun](https://bun.sh/) process orchestrated by [Bu
 
 | Area | What the project provides |
 | --- | --- |
-| **Primary nowcast** | Ingests PPI-Z and SRI radar (required), plus optional Windy accumulation, short-range GFS, and ECMWF frames. Builds rain and local-station context, then generates a structured near-term decision for Mumbai MMR. |
-| **Change-gated runs** | Uploads only when the new image hash differs from the latest stored object. Unchanged evidence skips the AI call and schedules a 30-minute retry during active hours. |
+| **Primary nowcast** | Ingests five configured image sources: required PPI-Z and SRI radar plus optional Windy accumulation, short-range GFS, and ECMWF frames. It also queries two rain stations, scraped rain statistics, and one local-station endpoint before generating a structured near-term decision. |
+| **Change-gated runs** | Compares the new image bytes with the latest stored object and uploads only on change. Unchanged evidence skips the AI call and schedules a 30-minute retry during active hours. Stable run IDs use a separate hash of mode and public image URLs. |
 | **Morning guarantee** | Between 07:00 and 07:30 IST, the primary pipeline forces one report per Mumbai calendar date even if imagery is unchanged, tracked by a Redis morning-completion marker. |
 | **Secondary D1–D5 outlook** | Daily transactional pipeline resolves complete GFS and ECMWF runs (five frames each at ~+24h through +120h), stages ten images under a run prefix, and only then analyzes and delivers. Incomplete sets are cleaned and aborted. |
 | **Structured decisions** | Primary and secondary model outputs are Zod-validated. Free-form text never drives side effects; application code owns delivery order, recipients, and retries. |
 | **Multi-channel delivery** | Primary order: save status → optional follow-up schedule → email → Discord → local alert. Secondary order: save status → email → Discord. Each action is locked and marked complete for 30 days. |
 | **Mumbai scheduling** | Delayed follow-ups only fire same-day between 07:00 inclusive and 23:00 exclusive IST. Primary delayed jobs coalesce under a single deduplication ID so at most one follow-up stays pending. |
 | **Severity-aware timing** | Follow-up delay windows are enforced by severity: red 2–3h, orange 3–6h, yellow 3–10h, green 8–12h (or null when no same-day update is useful). |
-| **Evidence storage** | S3-compatible primary-source buckets retain the two latest JPEG frames and supply them to the model oldest-to-newest with capture times. Direct images are resized to 800×800 cover at JPEG quality 20; Windy screenshots use a 1280×720 viewport at quality 80. |
-| **Health signals** | Minute Uptime Kuma heartbeats plus a successful primary-run push URL. External I/O uses bounded timeouts (images 30s, model 120s, gRPC 15s, monitoring 10s). |
+| **Evidence storage** | S3-compatible primary-source buckets retain the two latest JPEG frames per source and supply them to the model oldest-to-newest with capture times. Direct images are resized to 800×800 cover at JPEG quality 20; Windy screenshots use a 1280×720 viewport at quality 80. |
+| **Health signals** | One Uptime Kuma heartbeat runs every minute, plus a successful-primary-run push URL. Direct image fetches time out at 30s; model URL probes at 15s; browser waits at 45s; model calls at 120s; gRPC calls at 15s; and monitoring/local HTTP calls at 10s. Rain-statistics HTTP fetches retry up to 3 attempts with a 30s request timeout and 1s delay. |
 
 > [!NOTE]
 > **Status as of the current codebase**
@@ -49,9 +49,25 @@ The service is a long-running [Bun](https://bun.sh/) process orchestrated by [Bu
 > - **Startup behavior:** `startOrchestrator()` currently **obliterates** `weather_queue` on every start, then reinstalls schedulers and enqueues a startup primary run. Delayed work that existed before restart is not preserved across process restarts.
 > - **Station coverage:** rain context is built from two configured stations (Borivali, Kandivali East) plus scraped rain statistics; station failures are non-fatal and omitted from the prompt.
 
-### Production metrics
+## Performance, scale & reliability
 
-This monsoon’s run on this host, from **24 Jun 2026** (the day after IMD declared onset over Mumbai) through **25 Aug 2026**. Live queue and cache values captured 2026-08-25 ~17:36 IST.
+These are implementation-level bounds and local validation results. The repository does not contain a load-test harness or latency/throughput measurements, so no API p95, requests/second, cost-savings, or uptime claim is made.
+
+| Dimension | Evidence-backed result |
+| --- | --- |
+| Primary ingestion | **5** configured image sources: **2 required** radar feeds and **3 optional** sources. |
+| Secondary forecast set | **10** images per analyzed run: **2 models × 5 horizons** (+24h, +48h, +72h, +96h, +120h). A run is analyzed only after the complete set is staged; partial staging is cleaned up on error. |
+| Queue topology | **1** Redis-backed BullMQ queue and **1** Worker instance; no explicit worker concurrency is configured. |
+| Scheduling | **3** recurring BullMQ schedules: primary daily at 07:15 IST, secondary daily at 07:00 IST, and a minute heartbeat. |
+| Failure recovery | Failed primary/secondary jobs request a **30-minute** retry when the active-hours guard permits it; optional image and station sources degrade independently while required radar failures abort the run. |
+| Delivery safety | Primary runs can execute **5** ordered actions (status, optional schedule, email, Discord, alert); secondary runs execute **3** (status, email, Discord). Each action has a **10-minute** Redis lock and a **30-day** completion marker. |
+| Decision reuse | Structured decisions are cached in Redis for **30 days**; retries can reuse the validated decision and skip actions already marked `done`. |
+| Evidence retention | Primary ingestion keeps the **2 latest** objects per source; replacing an image uploads the new object before deleting older history. |
+| Local validation | **47 passing / 0 failing** tests across **18 files**; latest `bun test --coverage` run reports **73.62% line** and **72.43% function** coverage. `bun run typecheck` passes. |
+
+### Observed production metrics
+
+This is a repository-recorded production snapshot from this host, covering **24 Jun 2026** through **25 Aug 2026**. The queue/status values were captured on **25 Aug 2026 at approximately 17:36 IST** and are historical, not a current live status. The source is the project’s operational record and the `539f89d` Git commit; no raw log export is checked in.
 
 | Metric | Value |
 | --- | --- |
@@ -61,16 +77,16 @@ This monsoon’s run on this host, from **24 Jun 2026** (the day after IMD decla
 | Discord messages | **390** |
 | Local alerts | **336** (primary only) |
 | Follow-ups scheduled | **272** |
-| Severity mix | yellow 297 (76%) · orange 89 (23%) · green 6 (2%) · red 0 |
-| Average cadence | ~6 reports/day (≈5 nowcasts + 1 outlook) |
+| Severity mix | yellow 297 (~76%) · orange 89 (~23%) · green 6 (~2%) · red 0 |
+| Average cadence | **6.2 reports/day** (392 ÷ 63; 343 primary and 49 secondary) |
 | Current process up since | 2026-08-21 11:17 IST (queue is obliterated on every start) |
 
-| Live snapshot | Value |
+| Runtime snapshot at capture time | Value |
 | --- | --- |
-| Queue counts | waiting 0 · active 0 · delayed 4 · completed 10 · failed 32 · schedulers 3 |
-| Next primary | 2026-08-26 07:15 IST (`daily-weather-pipeline`) |
-| Next secondary | 2026-08-26 07:00 IST (`daily-secondary-pipeline`) |
-| Next delayed follow-up | 2026-08-25 21:18 IST (`delayed-weather-pipeline`, 4h delay) |
+| Queue counts at capture time | waiting 0 · active 0 · delayed 4 · completed 10 · failed 32 · schedulers 3 |
+| Next primary at capture time | 2026-08-26 07:15 IST (`daily-weather-pipeline`) |
+| Next secondary at capture time | 2026-08-26 07:00 IST (`daily-secondary-pipeline`) |
+| Next delayed follow-up at capture time | 2026-08-25 21:18 IST (`delayed-weather-pipeline`, 4h delay) |
 | Current primary alert | **yellow** — Borivali: light showers possible this evening |
 | Current primary memory | Radar ~13:51 IST (stale); Borivali weak/patchy light echoes, no strong core; Mumbai–Thane scattered weak; 0–1h dry, 1–6h light showers |
 | Current secondary peak | **yellow** — D1–D5 EC wetter than GFS across MMR/coast, confidence low–med |
@@ -81,7 +97,7 @@ This monsoon’s run on this host, from **24 Jun 2026** (the day after IMD decla
 
 ```mermaid
 flowchart LR
-  SRC[Radar / Windy / models] --> ING[Ingest + hash compare]
+  SRC[Radar / Windy / models] --> ING[Ingest + byte compare]
   ING -->|unchanged + not morning| RETRY[Schedule 30m retry]
   ING -->|changed or morning| CTX[Rain + local + prior status]
   CTX --> AI[Structured multimodal decision]
@@ -95,7 +111,7 @@ flowchart LR
   S3 --> AI
 ```
 
-Unchanged imagery short-circuits before the model is called, which keeps API cost and noise low. When a run proceeds, the decision is keyed by a hash of mode, optional morning date key, and public image URLs. Retries reuse that decision and skip any delivery action already marked `done`. Active locks expire after ten minutes so a crashed worker cannot block a channel forever. Active-hours policy is applied only when scheduling delayed jobs—not when evaluating whether a current run may execute.
+Unchanged imagery short-circuits before the model is called, avoiding an unnecessary model invocation and notification cycle. When a run proceeds, the decision is keyed by a hash of mode, optional morning date key, and public image URLs. Retries reuse that decision and skip any delivery action already marked `done`. Active locks expire after ten minutes so a crashed worker cannot block a channel forever. Active-hours policy is applied only when scheduling delayed jobs—not when evaluating whether a current run may execute.
 
 ## Report domains
 
@@ -194,7 +210,7 @@ Architectural conventions that appear in the code:
 | Delivery RPC | gRPC (`@grpc/grpc-js`) — mailer + Discord webhook protos |
 | HTTP clients | `fetch` / [Axios](https://axios-http.com/) where used; Cheerio for rain-stats HTML |
 | Config validation | Zod-backed `src/config.ts` |
-| Testing | `bun:test` (47 tests across 18 files) |
+| Testing | `bun:test` (47 tests across 18 files; latest local coverage run: 73.62% lines, 72.43% functions) |
 | Host process (macOS) | launchd plist in `launchd/` |
 
 ## Project structure
@@ -328,7 +344,7 @@ Coverage:
 bun test --coverage
 ```
 
-The suite covers model-run URL selection, Mumbai active hours, optional-source ingestion, saved-image assembly, decision caching, delivery idempotency, email sanitization, buffer equality, storage replacement ordering, and Puppeteer cleanup. As of the last local run: **47 pass, 0 fail** across 18 files.
+The suite covers model-run URL selection, Mumbai active hours, optional-source ingestion, saved-image assembly, decision caching, delivery idempotency, email sanitization, buffer equality, storage replacement ordering, and Puppeteer cleanup. The latest local runs report **47 pass, 0 fail** across 18 files; `bun test --coverage` reports **73.62% line** and **72.43% function** coverage, and `bun run typecheck` passes. Coverage is not produced by CI because this repository contains no CI workflow.
 
 ## Roadmap
 
@@ -336,7 +352,7 @@ The suite covers model-run URL selection, Mumbai active hours, optional-source i
 - Harden secondary run acquisition against upstream timeouts (recent queue failures show secondary jobs timing out during model-image staging)
 - Improve mailer gRPC resilience when the local mailer is slow or down (`DEADLINE_EXCEEDED` after 15s appears in failed delayed jobs)
 - Expand rain-station coverage beyond the two currently configured IDs
-- Consider non-hash change detection if hash-identical JPEG noise ever proves too strict or too loose in production
+- Consider perceptual image comparison if exact byte comparison ever proves too strict or too sensitive to encoding changes in production
 
 ## License
 
