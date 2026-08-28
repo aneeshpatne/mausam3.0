@@ -1,5 +1,6 @@
 ---
 import App from "../main";
+import { siteData } from "../site-data";
 ---
 
 <!doctype html>
@@ -15,6 +16,6 @@ import App from "../main";
     <title>Mausam — Mumbai weather intelligence</title>
   </head>
   <body>
-    <App client:load />
+    <App client:load data={siteData} />
   </body>
 </html>
