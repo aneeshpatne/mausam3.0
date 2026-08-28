@@ -93,3 +93,99 @@ nav button:active,.icon-button:active,.refresh:active { transform:translateY(1px
 @keyframes signal-pulse{50%{box-shadow:0 0 0 6px rgba(21,128,61,0)}}@keyframes scan{to{top:100%}}@keyframes rain-drop{from{transform:translateY(-5px);opacity:0}40%{opacity:.55}to{transform:translateY(6px);opacity:0}}@keyframes chance-fill{to{width:var(--chance)}}@keyframes detail-in{from{opacity:0;transform:translateY(-5px)}}@keyframes pop-in{from{opacity:0;transform:translateY(-7px) scale(.98)}}@keyframes radar-ring{from{transform:scale(.35);opacity:1}to{transform:scale(1.25);opacity:0}}
 @media(max-width:600px){.intro{margin:-16px -8px 32px;padding:48px 8px 18px}.hero-shader{opacity:.65}.signal-line i{display:none}.refresh-loader{top:72px;width:calc(100% - 28px)}.notification-pop{position:fixed;right:14px;top:70px}.weather-glyph i{display:none}}
 @media(prefers-reduced-motion:reduce){[data-reveal]{opacity:1;transform:none}.chance span{width:var(--chance)!important}.hero-shader{opacity:.42}.weather-glyph i{display:none}}
+
+/* Original, schematic MMR weather map */
+.map-section{padding-top:100px}.map-head{display:flex;align-items:end;justify-content:space-between;margin-bottom:24px}.map-head h2{font-size:clamp(34px,4.5vw,56px);font-weight:500;letter-spacing:-.045em;margin:11px 0 0}.map-readout{display:grid;grid-template-columns:auto auto;column-gap:18px;align-items:baseline;min-width:245px;border-left:1px solid #b9bec6;padding-left:20px}.map-readout span{grid-column:1/-1;text-transform:uppercase;letter-spacing:.1em;font-size:9px;color:#676d78}.map-readout strong{font-size:14px;font-weight:500}.map-readout b{grid-row:2/4;grid-column:2;font-size:28px;font-weight:500;color:var(--accent);letter-spacing:-.04em}.map-readout b small{font-size:10px;letter-spacing:0}.map-readout i{font-size:9px;font-style:normal;color:#676d78;letter-spacing:.08em;margin-top:4px}.mmr-map-wrap{height:min(66vw,690px);min-height:510px;position:relative;overflow:hidden;border-radius:11px;background:#111419;color:#3a3f47;box-shadow:inset 0 0 0 1px #30343b}.mmr-map{display:block;width:100%;height:100%}.map-sea{fill:#111419}.map-grid-fill{color:#242830;opacity:.8}.region{fill:#20242a;stroke:#8e96a2;stroke-width:1.1;vector-effect:non-scaling-stroke}.region.salsette{fill:#292d34}.region.navi{fill:#252a30}.region.island{fill:#292d34}.water-cut{fill:none;stroke:#111419;stroke-width:12}.rain-mass{fill:#d95528;opacity:.43}.rail-lines{fill:none;stroke:#727b87;stroke-width:1.2;stroke-dasharray:4 5}.coast-hatch{stroke:#737b86;stroke-width:1;opacity:.7}.map-labels{fill:#626a75;font-size:9px;letter-spacing:.18em}.storm-rings circle{fill:none;stroke:#e46c41;stroke-width:1;opacity:.48;animation:map-ring 3s ease-out infinite;transform-origin:233px 278px}.storm-rings circle:nth-child(2){animation-delay:.35s}.storm-rings circle:nth-child(3){animation-delay:.7s}.storm-vector{fill:none;stroke:#f08359;stroke-width:1.5;stroke-dasharray:7 7;animation:map-dash 3s linear infinite}.storm-vector-head{fill:none;stroke:#f08359;stroke-width:1.5}.map-zone{cursor:pointer;outline:none}.map-zone>path{stroke:#9ca5b1;stroke-width:1}.map-zone text{fill:#c7ccd3;font-size:9px;letter-spacing:.11em}.zone-pulse{fill:transparent;stroke:#8e96a2;stroke-width:1;transition:fill .2s,stroke .2s,transform .2s;transform-origin:center}.zone-core{fill:#b7bec8}.map-zone:hover .zone-pulse,.map-zone:focus-visible .zone-pulse,.map-zone.selected .zone-pulse{fill:rgba(217,85,40,.18);stroke:#f08359;transform:scale(1.16)}.map-zone.selected .zone-core{fill:#f08359}.map-zone.selected text{fill:#fff}.scale{fill:#8e96a2;stroke:#8e96a2;font-size:8px;letter-spacing:.08em}.map-coordinate{position:absolute;z-index:2;left:15px;font:9px ui-monospace,SFMono-Regular,monospace;color:#636b76;writing-mode:vertical-rl}.map-coordinate.top{top:17px}.map-coordinate.bottom{bottom:17px}.map-legend{position:absolute;right:18px;top:18px;display:flex;gap:14px;color:#9ba3ae;font-size:9px;letter-spacing:.05em}.map-legend span{display:flex;align-items:center;gap:5px}.map-legend i{width:7px;height:7px;border-radius:50%}.map-legend .moderate{background:#8e96a2}.map-legend .heavy{background:#d95528}.map-legend .intense{background:#ff855a;box-shadow:0 0 0 4px rgba(217,85,40,.16)}.map-caption{position:absolute;left:24px;bottom:20px;color:#d4d8de;display:flex;align-items:center;gap:10px}.map-caption b{font-size:10px;letter-spacing:.1em}.map-caption span{font-size:9px;color:#747d89;border-left:1px solid #4b515a;padding-left:10px}@keyframes map-ring{0%{opacity:.65;transform:scale(.82)}70%,100%{opacity:0;transform:scale(1.18)}}@keyframes map-dash{to{stroke-dashoffset:-28}}
+.osm-geometry path{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}.osm-geometry .minor-roads{stroke:#424850;stroke-width:.48}.osm-geometry .major-roads{stroke:#69717c;stroke-width:.72}.osm-geometry .arteries{stroke:#a3aab3;stroke-width:1.15}.osm-geometry .railways{stroke:#d8dce1;stroke-width:.72;stroke-dasharray:2.2 2}.osm-geometry .waterways{stroke:#1d7187;stroke-width:1.4}.osm-geometry .coastline{stroke:#79828d;stroke-width:1.15}.map-labels.district{fill:#858d98;font-size:11px}.map-labels.locality{fill:#707985;font-size:7px;letter-spacing:.1em}.storm-rings circle{transform-origin:221px 264px}.rain-mass{opacity:.3}.map-attribution{position:absolute;right:16px;bottom:12px;color:#69717c;font-size:8px;text-decoration:none}.map-attribution:hover{color:#c7ccd3}
+@media(max-width:700px){.map-section{padding-top:76px}.map-head{align-items:start}.map-readout{min-width:0;padding-left:14px;column-gap:8px}.map-readout strong{font-size:12px}.map-readout b{font-size:20px}.mmr-map-wrap{min-height:440px;height:82vw}.mmr-map{width:130%;max-width:none;transform:translateX(-18%)}.map-legend{left:15px;right:auto}.map-caption{left:15px;bottom:14px}.map-coordinate{display:none}.map-attribution{right:10px;bottom:8px}}
+
+/* De-slop pass: quieter hierarchy, shared geometry, restrained weather fields */
+:root {
+  --space-section:112px;
+  --radius-control:8px;
+  --radius-module:12px;
+  --surface:#f6f7f9;
+  --line:#cdd1d7;
+  --muted:#676d78;
+}
+main,footer { max-width:1320px; }
+main { padding-top:64px; }
+.intro { min-height:250px;margin:-20px 0 48px;padding:54px 0 18px; }
+.weather-field { position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1;mask-image:linear-gradient(90deg,transparent 16%,#000 58%,transparent 100%); }
+.weather-field-isobars { opacity:.7;mask-image:linear-gradient(90deg,transparent 48%,#000 82%,transparent 100%); }
+.outlook-section { position:relative;isolation:isolate;padding-top:var(--space-section); }
+h1 { max-width:780px; }
+h1 span { color:var(--graphite); }
+.signal-line { margin-top:22px; }
+.primary-card,.condition-card,.delivery-card { border-radius:var(--radius-module);background:rgba(246,247,249,.9); }
+.primary-card { min-height:480px; }
+.badge { border-radius:var(--radius-control);font-weight:500; }
+.badge.orange,.badge.yellow { background:transparent;border:1px solid currentColor; }
+.agent-icon { border-radius:var(--radius-control); }
+.mini-grid div { background:transparent;border-top:1px solid #dfe2e6;border-radius:0;padding:11px 0; }
+.forecast-grid { border-radius:var(--radius-module);background:rgba(238,240,243,.72); }
+.forecast.today { background:rgba(var(--accent-rgb),.055); }
+.map-section { padding-top:var(--space-section); }
+.mmr-map-wrap { border-radius:var(--radius-module);box-shadow:inset 0 0 0 1px #30343b; }
+.lower-grid { gap:0;padding-top:96px;border-top:1px solid var(--fog);margin-top:96px; }
+.timeline-card,.sources-card { background:transparent;border:0;border-radius:0;padding:8px 40px 0 0; }
+.sources-card { border-left:1px solid var(--fog);padding-left:40px;padding-right:0; }
+
+/* Interaction is reserved for controls and state changes. */
+.interactive-card:hover,.forecast:hover { transform:none;background:rgba(246,247,249,.9); }
+.primary-card:hover .agent-icon,.badge:hover .status-dot,.forecast:hover .status-dot,
+.forecast:hover .rain-icon svg,.condition-card:hover .number-roll { transform:none; }
+.metrics div:hover,.metrics div+div:hover { padding-left:inherit;background:transparent; }
+.metrics div+div:hover { padding-left:20px; }
+.delivery:hover,.source:hover { padding-left:0;padding-right:0;background:transparent; }
+.delivery:hover .check { transform:none; }
+.weather-glyph i { display:none; }
+.storm-rings circle,.storm-vector { animation:none; }
+.storm-rings circle { opacity:.32; }
+.map-zone { cursor:default;pointer-events:none; }
+.zone-pulse { fill:transparent;stroke:#8e96a2;transition:none;transform:none;transform-origin:unset; }
+.map-zone:hover .zone-pulse,.map-zone:focus-visible .zone-pulse,.map-zone.selected .zone-pulse { fill:transparent;stroke:#8e96a2;transform:none; }
+.map-zone.selected .zone-core { fill:#b7bec8; }
+.map-zone.selected text { fill:#c7ccd3; }
+
+/* Light technical map: paper, graphite infrastructure, alert-only colour. */
+.mmr-map-wrap { background:#e7eaee;color:#c9ced5;box-shadow:inset 0 0 0 1px #c4c9d0; }
+.map-sea { fill:#e7eaee; }
+.map-grid-fill { color:#cbd0d7;opacity:.72; }
+.rain-mass { fill:var(--accent);opacity:.2; }
+.osm-geometry .minor-roads { stroke:#c0c5cc; }
+.osm-geometry .major-roads { stroke:#9ba2ac; }
+.osm-geometry .arteries { stroke:#6f7782; }
+.osm-geometry .railways { stroke:#7e8792; }
+.osm-geometry .waterways { stroke:#8da8b0; }
+.osm-geometry .coastline { stroke:#858d98; }
+.map-labels.district { fill:#666e79; }
+.map-labels.locality { fill:#7d8590; }
+.storm-rings circle { stroke:var(--accent);opacity:.28; }
+.storm-vector,.storm-vector-head { stroke:var(--accent); }
+.scale { fill:#666e79;stroke:#666e79; }
+.map-coordinate { color:#7c848f; }
+.map-legend { color:#626a75; }
+.map-legend .moderate { background:#8e96a2; }
+.map-caption { color:#343941; }
+.map-caption span { color:#6d7580;border-left-color:#aeb4bc; }
+.map-attribution { color:#747c87; }
+.map-attribution:hover { color:var(--ink); }
+
+@media(max-width:900px){
+  :root { --space-section:88px; }
+  .intro { margin:-10px 0 42px;padding-top:42px; }
+  .lower-grid { border-top:0;margin-top:72px;padding-top:0;gap:56px; }
+  .timeline-card,.sources-card { padding:0;border:0; }
+  .sources-card { border-top:1px solid var(--fog);padding-top:56px; }
+}
+@media(max-width:600px){
+  :root { --space-section:72px; }
+  main { padding-left:20px;padding-right:20px; }
+  .intro { margin:-16px 0 34px;padding:44px 0 12px; }
+  .weather-field { opacity:.66;mask-image:linear-gradient(90deg,transparent,#000 72%,transparent); }
+  h1 span { color:var(--graphite); }
+  .map-head { gap:20px; }
+  .map-readout { border-left:0;border-top:1px solid #b9bec6;padding:10px 0 0; }
+  footer { margin:0 20px; }
+}
