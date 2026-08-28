@@ -1,5 +1,5 @@
 export const MUMBAI_LOCALITY_GUIDANCE = [
-  "Borivali is the alert target and must be assessed first; other Mumbai/MMR localities are supporting context only.",
+  "For the Borivali assessment, Borivali is the alert target and must be assessed first; other Mumbai/MMR localities are supporting context only. Assess those localities directly in the separate Mumbai/MMR assessment.",
   "When describing likely affected areas in user-facing email or Discord, prefer named Mumbai/MMR localities over vague directions.",
   "Choose best-effort locality names from the image placement, map labels, station names, source labels, and Mumbai/MMR geographic context; do not rely on a fixed example list.",
   "Prefer phrases like near a named locality, around a named locality pair, or between two named localities instead of western pockets, coastal belt, north side, east side, south side, or interior pockets.",
