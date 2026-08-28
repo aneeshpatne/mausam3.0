@@ -10,6 +10,7 @@ import {
 const TROPICAL_TIDBITS_RUN_HOURS = [0, 6, 12, 18] as const;
 const TROPICAL_TIDBITS_RUN_COOLDOWN_MS = 60 * 60 * 1000;
 const TROPICAL_TIDBITS_FRAME = 2;
+const COMPLETE_RUN_CANDIDATE_COUNT = 4;
 
 type FetchLike = (
   input: Parameters<typeof fetch>[0],
@@ -139,7 +140,10 @@ async function determineTropicalTidbitsUrls(
   fetchImpl: FetchLike = fetch,
 ): Promise<Map<number, string>> {
   const latestRunId = getLatestEligibleRunId(now);
-  const candidates = [latestRunId, getPreviousRunId(latestRunId)];
+  const candidates = [latestRunId];
+  while (candidates.length < COMPLETE_RUN_CANDIDATE_COUNT) {
+    candidates.push(getPreviousRunId(candidates.at(-1)!));
+  }
   for (const runId of candidates) {
     const urls = new Map(
       frames.map((frame) => [
