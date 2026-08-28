@@ -9,19 +9,30 @@ export interface WeatherPayload {
   pressure_hpa: number;
   humidity_pct: number;
   light_lux: number;
-  alert: WeatherAlertLevel;
+  weatherAlert: WeatherAlertLevel;
+  rainAlert: WeatherAlertLevel;
   ip: string;
 }
 
-const weatherPayloadSchema = z.object({
+const alertSchema = z.enum(["green", "yellow", "orange", "red"]);
+
+export const weatherPayloadSchema = z.object({
   ok: z.boolean(),
   temp_c: z.number().finite().min(-20).max(60),
   pressure_hpa: z.number().finite().min(800).max(1_200),
   humidity_pct: z.number().finite().min(0).max(100),
   light_lux: z.number().finite().nonnegative(),
-  alert: z.enum(["green", "yellow", "orange", "red"]),
+  // The station originally returned one `alert` field. Its current API splits
+  // this into weather and rain alerts, so accept both versions during rollout.
+  weatherAlert: alertSchema.optional(),
+  rainAlert: alertSchema.optional(),
+  alert: alertSchema.optional(),
   ip: z.string(),
-});
+}).transform(({ alert, weatherAlert, rainAlert, ...data }) => ({
+  ...data,
+  weatherAlert: weatherAlert ?? alert ?? "green",
+  rainAlert: rainAlert ?? alert ?? "green",
+}));
 
 export async function getLocalWeatherSummary(): Promise<string> {
   try {
