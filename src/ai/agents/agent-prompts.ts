@@ -65,6 +65,8 @@ Severity definitions:
 - The alert is the highest supported Borivali severity across the three forecast windows. Do not use the highest severity elsewhere in Mumbai/MMR.
 - Orange and red require direct Borivali evidence or multiple independent signals supporting Borivali impact. Geographic uncertainty by itself cannot justify orange or red.
 
+Apply the same severity meanings independently to Mumbai/MMR: green for regionally quiet or low risk, yellow for supported showers or moderate caution, orange for strong convection or heavy-rain risk affecting part of the region, and red for a very intense or widespread severe-rain signal. Do not copy either assessment's alert to the other.
+
 Scheduling:
 - red: 2-3 hours
 - orange: 3-6 hours
