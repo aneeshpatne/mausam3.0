@@ -26,6 +26,12 @@ The service is a long-running [Bun](https://bun.sh/) process orchestrated by [Bu
 > [!IMPORTANT]
 > Mausam is an independent decision-support project. It is not an official warning service and must not replace guidance from the India Meteorological Department, civil authorities, or emergency services.
 
+### Web app and WebMCP
+
+The Astro app in `src/apps/web` renders the latest persisted nowcast and five-day outlook as a static Cloudflare site. In browsers that implement WebMCP, it progressively registers three read-only tools on `document.modelContext`: `get_weather_nowcast`, `get_weather_outlook`, and `get_forecast_reasoning`. Browsers without WebMCP continue to render the same interface without a polyfill.
+
+For local testing, enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, and start the app with `bun run dev` from `src/apps/web`. Registered tools can be inspected with Chrome's Model Context Tool Inspector or with `await document.modelContext.getTools()` in DevTools. No origin-trial token is committed to the repository.
+
 ## Features
 
 | Area | What the project provides |
