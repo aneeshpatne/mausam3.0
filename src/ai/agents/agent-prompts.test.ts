@@ -38,7 +38,7 @@ describe("primary agent prompt", () => {
       "Personal notifications and scheduling use this color",
     );
     expect(prompt).toContain(
-      "Cover 0-1h, 1-3h, and 3-6h with intensity, likelihood, confidence",
+      "covering 0-1h, 1-3h, and 3-6h with intensity, likelihood, confidence",
     );
     expect(prompt).toContain("return two distinct assessments");
     expect(prompt).toContain("mumbai_prediction_summary");
