@@ -1,11 +1,10 @@
 import React from "react";
 import { Activity, Bell, Bot, Check, ChevronRight, Clock3, CloudRain, Mail, MapPin, MessageSquare, Radar, RefreshCw, Satellite, Wind, X } from "lucide-react";
 import { mmrMapPaths } from "./mmr-map-data";
+import type { Alert, SiteData } from "./site-data";
 import "./styles.css";
 
-type Alert = "green" | "yellow" | "orange" | "red";
-
-const forecast = [
+const fallbackForecast = [
   { day: "Today", date: "28 Aug", rain: "Heavy spells", chance: 86, mm: "42–68 mm", level: "orange" as Alert },
   { day: "Sat", date: "29 Aug", rain: "Frequent rain", chance: 78, mm: "28–44 mm", level: "yellow" as Alert },
   { day: "Sun", date: "30 Aug", rain: "Scattered", chance: 54, mm: "12–22 mm", level: "yellow" as Alert },
@@ -13,7 +12,7 @@ const forecast = [
   { day: "Tue", date: "01 Sep", rain: "Isolated", chance: 24, mm: "1–6 mm", level: "green" as Alert },
 ];
 
-const runs = [
+const fallbackRuns = [
   { agent: "Nowcast", time: "14:32", note: "Alert raised to orange", level: "orange" as Alert },
   { agent: "Outlook", time: "12:05", note: "D2 rain signal strengthened", level: "yellow" as Alert },
   { agent: "Nowcast", time: "09:18", note: "Morning report delivered", level: "yellow" as Alert },
@@ -105,7 +104,86 @@ function RefreshLoader({ visible }: { visible: boolean }) {
   return <div className={`refresh-loader ${visible ? "visible" : ""}`} aria-live="polite" aria-hidden={!visible}><div className="loader-radar"><Radar size={21}/><i/><i/><i/></div><div><b>Agents are reading the sky</b><span>Comparing radar · models · station data</span></div></div>;
 }
 
-export default function App() {
+function WaitingForData({ primaryReady, outlookReady }: { primaryReady: boolean; outlookReady: boolean }) {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let frame = 0;
+    let animationId = 0;
+    const draw = () => {
+      const scale = Math.min(devicePixelRatio, 2);
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (canvas.width !== width * scale || canvas.height !== height * scale) {
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+      }
+      context.setTransform(scale, 0, 0, scale, 0, 0);
+      context.clearRect(0, 0, width, height);
+      const time = reducedMotion ? 0 : frame * .008;
+      const cx = width / 2;
+      const cy = height / 2;
+      for (let ring = 0; ring < 9; ring++) {
+        context.beginPath();
+        const base = 34 + ring * Math.min(width, height) * .052;
+        for (let point = 0; point <= 160; point++) {
+          const angle = point / 160 * Math.PI * 2;
+          const drift = Math.sin(angle * (3 + ring % 3) + time * (ring % 2 ? -1 : 1) + ring) * (5 + ring * 1.4);
+          const x = cx + Math.cos(angle) * (base + drift) * 1.35;
+          const y = cy + Math.sin(angle) * (base + drift) * .7;
+          point ? context.lineTo(x, y) : context.moveTo(x, y);
+        }
+        context.strokeStyle = `rgba(217,85,40,${.2 - ring * .014})`;
+        context.lineWidth = ring === 0 ? 1.5 : 1;
+        context.stroke();
+      }
+      for (let point = 0; point < 54; point++) {
+        const angle = point * 2.39996 + time * (.15 + point % 4 * .035);
+        const distance = 30 + (point * 47 % 280);
+        const pulse = .45 + Math.sin(time * 2 + point) * .3;
+        context.fillStyle = `rgba(217,85,40,${pulse})`;
+        context.fillRect(cx + Math.cos(angle) * distance * 1.35, cy + Math.sin(angle) * distance * .7, 1.5, 1.5);
+      }
+      frame++;
+      if (!reducedMotion) animationId = requestAnimationFrame(draw);
+    };
+    draw();
+    const observer = new ResizeObserver(draw);
+    observer.observe(canvas);
+    return () => { cancelAnimationFrame(animationId); observer.disconnect(); };
+  }, []);
+
+  const waitingFor = [!primaryReady && "nowcast", !outlookReady && "five-day outlook"].filter(Boolean).join(" and ");
+  return <main className="waiting-screen" aria-live="polite">
+    <canvas ref={canvasRef} className="waiting-field" aria-hidden="true" />
+    <div className="waiting-brand"><span className="brand-mark"><CloudRain size={18}/></span><span>Mausam</span></div>
+    <section className="waiting-copy">
+      <div className="waiting-radar"><Radar size={22}/><i/><i/><i/></div>
+      <div className="eyebrow">Mumbai weather intelligence</div>
+      <h1>Reading the sky.</h1>
+      <p>The agents are preparing the first {waitingFor} report. This page will fill in after the next build.</p>
+      <div className="waiting-status"><span/><b>Waiting for agent data</b></div>
+    </section>
+    <small className="waiting-foot">Radar · forecast models · local observations</small>
+  </main>;
+}
+
+const fallbackPrimary = {
+  alert: "green" as Alert, headline: "Awaiting the first agent report.", summary: "The site data store is ready. A current nowcast will appear after the primary agent completes its next run.", analysedAt: new Date().toISOString(), rainChance: 0, expectedPeak: "Unavailable", confidence: "Low" as const, agentNote: "No persisted nowcast is available yet.", temperatureC: null, feelsLikeC: null, wind: null, rainRate: null, station: null, stationUpdatedAt: null, sourceSummary: "Waiting for the primary agent to persist its first report.",
+};
+const fallbackOutlook = { alert: "green" as Alert, headline: "Awaiting the first outlook report.", modelRead: "No persisted five-day outlook is available yet.", reasoning: "The forecast cards will be populated by the secondary agent after its next complete model run.", analysedAt: new Date().toISOString(), days: fallbackForecast.map(day => ({ date: day.date, label: day.day, rain: "Awaiting data", chance: null, rainfall: "Unavailable", alert: "green" as Alert })) };
+const formatTime = (value: string) => new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
+const quantitativeChance = (chance: number | null, rainfall: string) =>
+  chance !== null && !/^qualitative\b/i.test(rainfall) ? chance : null;
+
+export default function App({ data }: { data: SiteData }) {
+  const primary = data.primary ?? fallbackPrimary;
+  const outlook = data.outlook ?? fallbackOutlook;
+  const forecast = outlook.days;
+  const runs = data.runs.length ? data.runs.slice(0, 3).map(run => ({ agent: run.agent, time: formatTime(run.analysedAt), note: run.note, level: run.alert })) : fallbackRuns;
   const [tab, setTab] = React.useState<"overview" | "runs">("overview");
   const [refreshed, setRefreshed] = React.useState(false);
   const [reasoning, setReasoning] = React.useState(false);
@@ -117,9 +195,17 @@ export default function App() {
     nodes.forEach(node=>observer.observe(node)); return()=>observer.disconnect();
   },[]);
 
+  if (!data.primary || !data.outlook) {
+    return <WaitingForData primaryReady={Boolean(data.primary)} outlookReady={Boolean(data.outlook)} />;
+  }
+
   return (
-    <div className={`app-shell ${refreshed ? "is-refreshing" : ""}`} data-alert-theme="orange">
+    <div className={`app-shell ${refreshed ? "is-refreshing" : ""}`} data-alert-theme={primary.alert}>
       <RefreshLoader visible={refreshed} />
+      <aside className="research-banner" aria-label="Research preview notice">
+        <span className="research-label"><Bot size={14}/> Research preview</span>
+        <p>Experimental AI-generated weather guidance. It may be incomplete or incorrect—always follow official IMD forecasts, warnings, and local emergency authorities.</p>
+      </aside>
       <header>
         <a className="brand" href="#top" aria-label="Mausam home"><span className="brand-mark"><CloudRain size={18} /></span><span>Mausam</span></a>
         <nav aria-label="Main navigation">
@@ -132,21 +218,21 @@ export default function App() {
       <main id="top">
         <section className="intro" data-reveal>
           <WeatherField />
-          <div className="intro-copy"><div className="eyebrow"><MapPin size={14} /> Mumbai Metropolitan Region</div><h1>Rain is building<br /><span>towards the evening.</span></h1><div className="signal-line"><span/><b>Live signal</b><i>18 sources · 2 agents · one current view</i></div></div>
-          <div className="updated"><Clock3 size={14} /> Last analysed 14:32 IST</div>
+          <div className="intro-copy"><div className="eyebrow"><MapPin size={14} /> Mumbai Metropolitan Region</div><h1>{primary.headline}</h1><div className="signal-line"><span/><b>Latest signal</b><i>2 agents · one current view</i></div></div>
+          <div className="updated"><Clock3 size={14} /> Last analysed {formatTime(primary.analysedAt)} IST</div>
         </section>
 
         <section className="hero-grid" data-reveal>
-          <article className="primary-card interactive-card live-signal-box" data-alert="orange">
+          <article className="primary-card interactive-card live-signal-box" data-alert={primary.alert}>
             <div className="scan-line" />
-            <div className="card-top"><div className="agent-label"><span className="agent-icon"><Radar size={17} /></span><div><b>Nowcast agent</b><small>Current + near term</small></div></div><span className="badge orange"><StatusDot level="orange" /> Orange alert</span></div>
-            <div className="hero-copy"><span className="kicker">Next 3–6 hours</span><h2>Heavy rain likely across western and central suburbs.</h2><p>Strong echoes are consolidating west of Mumbai and moving east-northeast. Short, intense spells may reduce visibility and cause local waterlogging during the evening commute.</p></div>
-            <div className="metrics"><div><small>Rain chance</small><strong>86%</strong></div><div><small>Expected peak</small><strong>5–7 PM</strong></div><div><small>Confidence</small><strong>High</strong></div></div>
-            <div className="agent-note"><Bot size={16} /><p><b>Agent note</b> Escalated from yellow at 14:32 as offshore echoes strengthened. Next useful check in 3 hours.</p></div>
+            <div className="card-top"><div className="agent-label"><span className="agent-icon"><Radar size={17} /></span><div><b>Nowcast agent</b><small>Current + near term</small></div></div><span className={`badge ${primary.alert}`}><StatusDot level={primary.alert} /> {primary.alert} alert</span></div>
+            <div className="hero-copy"><span className="kicker">Next 3–6 hours</span><h2>{primary.headline}</h2><p>{primary.summary}</p></div>
+            <div className="metrics"><div><small>Rain chance</small><strong>{primary.rainChance}%</strong></div><div><small>Expected peak</small><strong>{primary.expectedPeak}</strong></div><div><small>Confidence</small><strong>{primary.confidence}</strong></div></div>
+            <div className="agent-note"><Bot size={16} /><p><b>Agent note</b> {primary.agentNote}</p></div>
           </article>
 
           <aside className="side-stack">
-            <article className="condition-card interactive-card"><div className="section-label"><Activity size={15} /> Ground conditions</div><div className="condition-main"><div><strong><span className="number-roll">29</span>°</strong><span>Feels like 34°</span></div><div className="weather-glyph"><CloudRain size={48} strokeWidth={1.25} /><i/><i/><i/></div></div><div className="mini-grid"><div><Wind size={15} /><span>WSW 19 km/h</span></div><div><CloudRain size={15} /><span>7.8 mm / hr</span></div></div><div className="station"><span>Local station · Andheri</span><b>Updated 14:25</b></div></article>
+            <article className="condition-card interactive-card"><div className="section-label"><Activity size={15} /> Ground conditions</div><div className="condition-main"><div><strong><span className="number-roll">{primary.temperatureC ?? "—"}</span>{primary.temperatureC !== null && "°"}</strong><span>{primary.feelsLikeC === null ? "Latest reading unavailable" : `Feels like ${primary.feelsLikeC}°`}</span></div><div className="weather-glyph"><CloudRain size={48} strokeWidth={1.25} /><i/><i/><i/></div></div><div className="mini-grid"><div><Wind size={15} /><span>{primary.wind ?? "Wind unavailable"}</span></div><div><CloudRain size={15} /><span>{primary.rainRate ?? "Rain rate unavailable"}</span></div></div><div className="station"><span>Local station · {primary.station ?? "Unavailable"}</span><b>{primary.stationUpdatedAt ? `Updated ${primary.stationUpdatedAt}` : "Awaiting update"}</b></div></article>
             <article className="delivery-card"><div className="section-label"><Check size={15} /> Report delivered</div><Delivery icon={Mail} label="Email report" /><Delivery icon={MessageSquare} label="Discord update" /><Delivery icon={Bell} label="Alert banner" /></article>
           </aside>
         </section>
@@ -155,16 +241,16 @@ export default function App() {
 
         <section className="outlook-section" data-reveal>
           <WeatherField variant="isobars" />
-          <div className="section-head"><div><div className="eyebrow"><Satellite size={14} /> Outlook agent</div><h2>The signal eases after Sunday.</h2></div><span className="badge yellow"><StatusDot level="yellow" /> 5-day peak · Yellow</span></div>
+          <div className="section-head"><div><div className="eyebrow"><Satellite size={14} /> Outlook agent</div><h2>{outlook.headline}</h2></div><span className={`badge ${outlook.alert}`}><StatusDot level={outlook.alert} /> 5-day peak · {outlook.alert}</span></div>
           <div className="forecast-grid">
-            {forecast.map((item, i) => <article className={i === 0 ? "forecast today" : "forecast"} style={{"--delay":`${i*45}ms`} as React.CSSProperties} key={item.day}><div className="forecast-head"><div><b>{item.day}</b><small>{item.date}</small></div><StatusDot level={item.level} /></div><div className="rain-icon"><CloudRain size={i < 2 ? 30 : 25} strokeWidth={1.5} /></div><strong>{item.rain}</strong><div className="chance"><span style={{ "--chance": `${item.chance}%` } as React.CSSProperties} /></div><div className="forecast-foot"><span>{item.chance}% chance</span><b>{item.mm}</b></div></article>)}
+            {forecast.map((item, i) => { const chance = quantitativeChance(item.chance, item.rainfall); return <article className={i === 0 ? "forecast today" : "forecast"} style={{"--delay":`${i*45}ms`} as React.CSSProperties} key={item.date}><div className="forecast-head"><div><b>{item.label}</b><small>{item.date}</small></div><StatusDot level={item.alert} /></div><div className="rain-icon"><CloudRain size={i < 2 ? 30 : 25} strokeWidth={1.5} /></div><strong>{item.rain}</strong>{chance !== null && <div className="chance"><span style={{ "--chance": `${chance}%` } as React.CSSProperties} /></div>}<div className="forecast-foot"><span>{chance === null ? "Chance unavailable" : `${chance}% chance`}</span><b>{item.rainfall}</b></div></article>})}
           </div>
-          <div className={`model-note ${reasoning ? "expanded" : ""}`}><Bot size={17} /><div><p><b>Model read:</b> GFS and ECMWF agree on the Friday peak, then diverge slightly on Sunday coverage. Confidence improves again from Monday.</p>{reasoning&&<p className="reasoning-detail">ECMWF keeps the offshore trough organised six hours longer. GFS disperses it earlier. Both retain lighter, scattered convection through Sunday afternoon.</p>}</div><button aria-expanded={reasoning} onClick={()=>setReasoning(v=>!v)}>{reasoning ? "Hide reasoning" : "View forecast reasoning"} <ChevronRight size={15} /></button></div>
+          <div className={`model-note ${reasoning ? "expanded" : ""}`}><Bot size={17} /><div><p><b>Model read:</b> {outlook.modelRead}</p>{reasoning&&<p className="reasoning-detail">{outlook.reasoning}</p>}</div><button aria-expanded={reasoning} onClick={()=>setReasoning(v=>!v)}>{reasoning ? "Hide reasoning" : "View forecast reasoning"} <ChevronRight size={15} /></button></div>
         </section>
 
         <section className="lower-grid" data-reveal>
           <article className="timeline-card"><div className="section-head compact"><div><div className="eyebrow">Recent activity</div><h3>What the agents changed</h3></div><button onClick={() => setTab("runs")}>All runs <ChevronRight size={15} /></button></div><div className="timeline">{runs.map((run, i) => <div className="run" key={run.time}><div className="run-line"><StatusDot level={run.level} />{i < runs.length - 1 && <i />}</div><div><b>{run.note}</b><span>{run.agent} agent · {run.time} IST</span></div></div>)}</div></article>
-          <article className="sources-card"><div className="eyebrow">Input health</div><h3>Sources are current.</h3><p>Both agents have the latest radar, forecast and station observations.</p><div className="source"><Radar size={17} /><div><b>Radar imagery</b><span>4 frames · 6 min ago</span></div><Check size={15} /></div><div className="source"><Satellite size={17} /><div><b>GFS + ECMWF</b><span>10 panels · 2 hr ago</span></div><Check size={15} /></div><div className="source"><Activity size={17} /><div><b>Local observations</b><span>Andheri · 7 min ago</span></div><Check size={15} /></div></article>
+          <article className="sources-card"><div className="eyebrow">Input health</div><h3>Latest agent evidence.</h3><p>{primary.sourceSummary}</p><div className="source"><Radar size={17} /><div><b>Radar imagery</b><span>Primary agent input</span></div><Check size={15} /></div><div className="source"><Satellite size={17} /><div><b>GFS + ECMWF</b><span>10 outlook panels</span></div><Check size={15} /></div><div className="source"><Activity size={17} /><div><b>Local observations</b><span>{primary.station ?? "Station unavailable"}</span></div><Check size={15} /></div></article>
         </section>
       </main>
       <footer><span>Mausam / Mumbai weather intelligence</span><span>Times shown in IST · AI forecasts can be wrong</span></footer>
