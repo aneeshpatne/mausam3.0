@@ -2,6 +2,8 @@ import React from "react";
 import { Activity, Bell, Bot, Check, ChevronRight, Clock3, CloudRain, Mail, MapPin, MessageSquare, Radar, RefreshCw, Satellite, Wind, X } from "lucide-react";
 import { mmrMapPaths } from "./mmr-map-data";
 import type { Alert, SiteData } from "./site-data";
+import { useWeatherWebMcp } from "./use-weather-webmcp";
+import { quantitativeChance } from "./webmcp";
 import "./styles.css";
 
 const fallbackForecast = [
@@ -10,12 +12,6 @@ const fallbackForecast = [
   { day: "Sun", date: "30 Aug", rain: "Scattered", chance: 54, mm: "12–22 mm", level: "yellow" as Alert },
   { day: "Mon", date: "31 Aug", rain: "Light spells", chance: 36, mm: "4–12 mm", level: "green" as Alert },
   { day: "Tue", date: "01 Sep", rain: "Isolated", chance: 24, mm: "1–6 mm", level: "green" as Alert },
-];
-
-const fallbackRuns = [
-  { agent: "Nowcast", time: "14:32", note: "Alert raised to orange", level: "orange" as Alert },
-  { agent: "Outlook", time: "12:05", note: "D2 rain signal strengthened", level: "yellow" as Alert },
-  { agent: "Nowcast", time: "09:18", note: "Morning report delivered", level: "yellow" as Alert },
 ];
 
 function MmrMap() {
@@ -176,15 +172,11 @@ const fallbackPrimary = {
 };
 const fallbackOutlook = { alert: "green" as Alert, headline: "Awaiting the first outlook report.", modelRead: "No persisted five-day outlook is available yet.", reasoning: "The forecast cards will be populated by the secondary agent after its next complete model run.", analysedAt: new Date().toISOString(), days: fallbackForecast.map(day => ({ date: day.date, label: day.day, rain: "Awaiting data", chance: null, rainfall: "Unavailable", alert: "green" as Alert })) };
 const formatTime = (value: string) => new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
-const quantitativeChance = (chance: number | null, rainfall: string) =>
-  chance !== null && !/^qualitative\b/i.test(rainfall) ? chance : null;
-
 export default function App({ data }: { data: SiteData }) {
+  useWeatherWebMcp(data);
   const primary = data.primary ?? fallbackPrimary;
   const outlook = data.outlook ?? fallbackOutlook;
   const forecast = outlook.days;
-  const runs = data.runs.length ? data.runs.slice(0, 3).map(run => ({ agent: run.agent, time: formatTime(run.analysedAt), note: run.note, level: run.alert })) : fallbackRuns;
-  const [tab, setTab] = React.useState<"overview" | "runs">("overview");
   const [refreshed, setRefreshed] = React.useState(false);
   const [reasoning, setReasoning] = React.useState(false);
   const [notifications, setNotifications] = React.useState(false);
@@ -203,16 +195,12 @@ export default function App({ data }: { data: SiteData }) {
     <div className={`app-shell ${refreshed ? "is-refreshing" : ""}`} data-alert-theme={primary.alert}>
       <RefreshLoader visible={refreshed} />
       <aside className="research-banner" aria-label="Research preview notice">
-        <span className="research-label"><Bot size={14}/> Research preview</span>
-        <p>Experimental AI-generated weather guidance. It may be incomplete or incorrect—always follow official IMD forecasts, warnings, and local emergency authorities.</p>
+        <div className="research-notice"><span className="research-label"><Bot size={14}/> Research preview</span><p>Experimental AI-generated weather guidance. It may be incomplete or incorrect—always follow official IMD forecasts, warnings, and local emergency authorities.</p></div>
       </aside>
       <header>
         <a className="brand" href="#top" aria-label="Mausam home"><span className="brand-mark"><CloudRain size={18} /></span><span>Mausam</span></a>
-        <nav aria-label="Main navigation">
-          <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
-          <button className={tab === "runs" ? "active" : ""} onClick={() => setTab("runs")}>Agent runs</button>
-        </nav>
-        <div className="header-actions"><span className="live"><i /> Live</span><div className="notification-wrap"><button className={`icon-button ${notifications ? "pressed" : ""}`} aria-label="Notifications" onClick={()=>setNotifications(v=>!v)}><Bell size={18} /><i className="unread" /></button>{notifications&&<div className="notification-pop"><div><b>Latest delivery</b><button aria-label="Close" onClick={()=>setNotifications(false)}><X size={14}/></button></div><p>Orange alert sent to email and Discord.</p><span>14:32 IST · All channels healthy</span></div>}</div><button className="refresh cta-dither" onClick={refresh}><RefreshCw size={15} className={refreshed ? "spin" : ""} />{refreshed ? "Analysing" : "Refresh"}</button></div>
+        <nav aria-label="Main navigation"><a className="active" href="#top" aria-current="page">Overview</a></nav>
+        <div className="header-actions"><div className="project-links"><a className="github-button" href="https://github.com/aneeshpatne/mausam3.0" target="_blank" rel="noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .7a11.5 11.5 0 0 0-3.64 22.4c.58.1.79-.25.79-.56v-2.23c-3.22.7-3.9-1.37-3.9-1.37-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.57-.29-5.27-1.28-5.27-5.69 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.47.11-3.05 0 0 .96-.31 3.16 1.18a10.9 10.9 0 0 1 5.75 0c2.2-1.49 3.16-1.18 3.16-1.18.62 1.58.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.71 5.39-5.29 5.68.42.36.79 1.06.79 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/></svg> GitHub</a><a className="license-link" href="https://github.com/aneeshpatne/mausam3.0/blob/main/LICENSE" target="_blank" rel="noreferrer">AGPL-3.0</a></div><span className="live"><i /> Live</span><div className="notification-wrap"><button className={`icon-button ${notifications ? "pressed" : ""}`} aria-label="Notifications" onClick={()=>setNotifications(v=>!v)}><Bell size={18} /><i className="unread" /></button>{notifications&&<div className="notification-pop"><div><b>Latest delivery</b><button aria-label="Close" onClick={()=>setNotifications(false)}><X size={14}/></button></div><p>Orange alert sent to email and Discord.</p><span>14:32 IST · All channels healthy</span></div>}</div><button className="refresh cta-dither" onClick={refresh}><RefreshCw size={15} className={refreshed ? "spin" : ""} />{refreshed ? "Analysing" : "Refresh"}</button></div>
       </header>
 
       <main id="top">
@@ -248,8 +236,7 @@ export default function App({ data }: { data: SiteData }) {
           <div className={`model-note ${reasoning ? "expanded" : ""}`}><Bot size={17} /><div><p><b>Model read:</b> {outlook.modelRead}</p>{reasoning&&<p className="reasoning-detail">{outlook.reasoning}</p>}</div><button aria-expanded={reasoning} onClick={()=>setReasoning(v=>!v)}>{reasoning ? "Hide reasoning" : "View forecast reasoning"} <ChevronRight size={15} /></button></div>
         </section>
 
-        <section className="lower-grid" data-reveal>
-          <article className="timeline-card"><div className="section-head compact"><div><div className="eyebrow">Recent activity</div><h3>What the agents changed</h3></div><button onClick={() => setTab("runs")}>All runs <ChevronRight size={15} /></button></div><div className="timeline">{runs.map((run, i) => <div className="run" key={run.time}><div className="run-line"><StatusDot level={run.level} />{i < runs.length - 1 && <i />}</div><div><b>{run.note}</b><span>{run.agent} agent · {run.time} IST</span></div></div>)}</div></article>
+        <section className="lower-grid sources-only" data-reveal>
           <article className="sources-card"><div className="eyebrow">Input health</div><h3>Latest agent evidence.</h3><p>{primary.sourceSummary}</p><div className="source"><Radar size={17} /><div><b>Radar imagery</b><span>Primary agent input</span></div><Check size={15} /></div><div className="source"><Satellite size={17} /><div><b>GFS + ECMWF</b><span>10 outlook panels</span></div><Check size={15} /></div><div className="source"><Activity size={17} /><div><b>Local observations</b><span>{primary.station ?? "Station unavailable"}</span></div><Check size={15} /></div></article>
         </section>
       </main>
