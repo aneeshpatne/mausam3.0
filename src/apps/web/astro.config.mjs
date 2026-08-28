@@ -6,5 +6,9 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
+    headers: {
+      "Origin-Agent-Cluster": "?1",
+      "Permissions-Policy": "tools=(self)",
+    },
   },
 });
