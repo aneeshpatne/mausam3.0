@@ -8,6 +8,7 @@ import { sendSecondaryMessageTool } from "../tools/secondary-send-message";
 import { buildSecondaryAgentPrompt } from "./agent-prompts";
 import { secondaryModel } from "./model";
 import type { WeatherAgentImageInput } from "./weather-agent";
+import { saveOutlookReport } from "../../storage/weather-db";
 
 const secondaryDecisionSchema = z.object({
   alert: z.enum(["green", "yellow", "orange", "red"]).describe(
@@ -25,6 +26,19 @@ const secondaryDecisionSchema = z.object({
   discord_message: z.string().trim().min(1).describe(
     "Dense technical D1-D5 update with exact IST windows and model comparison",
   ),
+  website: z.object({
+    headline: z.string().trim().min(1),
+    model_read: z.string().trim().min(1),
+    reasoning: z.string().trim().min(1),
+    days: z.array(z.object({
+      date: z.string().trim().min(1),
+      label: z.string().trim().min(1),
+      rain: z.string().trim().min(1),
+      chance: z.number().int().min(0).max(100).nullable(),
+      rainfall: z.string().trim().min(1),
+      alert: z.enum(["green", "yellow", "orange", "red"]),
+    })).length(5),
+  }).describe("Five presentation-ready website forecast cards derived only from supplied images"),
 });
 
 export async function secondaryAgent(
@@ -59,6 +73,16 @@ export async function secondaryAgent(
       summary: decision.compact_summary,
     }),
   );
+  await runDeliveryOnce(runId, "save-website", async () => {
+    saveOutlookReport({
+      alert: decision.alert,
+      headline: decision.website.headline,
+      modelRead: decision.website.model_read,
+      reasoning: decision.website.reasoning,
+      analysedAt: new Date().toISOString(),
+      days: decision.website.days,
+    });
+  });
   await runDeliveryOnce(runId, "email", async () =>
     sendMailToolSecondary.invoke({
       alert_color: decision.alert,
