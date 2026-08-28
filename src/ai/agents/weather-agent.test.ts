@@ -16,5 +16,8 @@ describe("weather agent locality guidance", () => {
     expect(MUMBAI_LOCALITY_GUIDANCE).toContain(
       "Never transfer severity from another locality to Borivali",
     );
+    expect(MUMBAI_LOCALITY_GUIDANCE).toContain(
+      "separate Mumbai/MMR assessment",
+    );
   });
 });
