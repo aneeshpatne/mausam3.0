@@ -1,6 +1,6 @@
 import React from "react";
-import { createRoot } from "react-dom/client";
 import { Activity, Bell, Bot, Check, ChevronRight, Clock3, CloudRain, Mail, MapPin, MessageSquare, Radar, RefreshCw, Satellite, Wind, X } from "lucide-react";
+import { mmrMapPaths } from "./mmr-map-data";
 import "./styles.css";
 
 type Alert = "green" | "yellow" | "orange" | "red";
@@ -19,6 +19,35 @@ const runs = [
   { agent: "Nowcast", time: "09:18", note: "Morning report delivered", level: "yellow" as Alert },
 ];
 
+function MmrMap() {
+  return <section className="map-section" data-reveal aria-labelledby="map-title">
+    <div className="map-head">
+      <div><div className="eyebrow"><Radar size={14}/> Hyperlocal scan · 14:32 IST</div><h2 id="map-title">The storm has a shape.</h2></div>
+    </div>
+    <div className="mmr-map-wrap">
+      <div className="map-coordinate top">19.278° N</div><div className="map-coordinate bottom">18.892° N</div>
+      <svg className="mmr-map" viewBox="0 0 900 590" role="img" aria-label="Stylised weather map of Mumbai Metropolitan Region showing rain intensity over Andheri, Bandra, Thane, Vashi and Panvel">
+        <defs>
+          <pattern id="map-grid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0V36" fill="none" stroke="currentColor" strokeWidth=".7"/></pattern>
+          <pattern id="map-dots" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="currentColor"/></pattern>
+          <filter id="map-blur"><feGaussianBlur stdDeviation="18"/></filter>
+        </defs>
+        <rect width="900" height="590" className="map-sea"/><rect width="900" height="590" className="map-grid-fill" fill="url(#map-grid)"/>
+        <g className="rain-mass" filter="url(#map-blur)"><path d="M64 167C158 101 286 129 334 218s-19 166-113 175S48 312 64 167Z"/><path d="M257 201c82-41 190 4 200 83s-68 119-147 78-118-128-53-161Z"/></g>
+        <g className="osm-geometry"><path className="waterways" d={mmrMapPaths.water}/><path className="minor-roads" d={mmrMapPaths.secondary}/><path className="major-roads" d={mmrMapPaths.primary}/><path className="arteries" d={mmrMapPaths.motorway}/><path className="railways" d={mmrMapPaths.rail}/><path className="coastline" d={mmrMapPaths.coast}/></g>
+        <g className="map-labels district"><text x="96" y="84">ARABIAN SEA</text><text x="440" y="72">THANE</text><text x="674" y="362">NAVI MUMBAI</text><text x="270" y="502">MUMBAI</text></g>
+        <g className="map-labels locality"><text x="243" y="192">BORIVALI</text><text x="369" y="247">MULUND</text><text x="571" y="175">DOMBIVLI</text><text x="594" y="101">KALYAN</text><text x="394" y="298">AIROLI</text><text x="488" y="365">NERUL</text><text x="215" y="435">WORLI</text><text x="249" y="536">COLABA</text></g>
+        <g className="storm-rings"><circle cx="221" cy="264" r="88"/><circle cx="221" cy="264" r="61"/><circle cx="221" cy="264" r="34"/></g>
+        <path className="storm-vector" d="M55 330C128 313 171 288 226 247s103-67 152-72"/><path className="storm-vector-head" d="M359 160l22 13-12 23"/>
+        <g className="scale"><path d="M697 528h118"/><path d="M697 522v12M756 522v12M815 522v12"/><text x="697" y="553">0</text><text x="748" y="553">10</text><text x="804" y="553">20 KM</text></g>
+      </svg>
+      <div className="map-legend"><span><i className="moderate"/>Moderate</span><span><i className="heavy"/>Heavy</span><span><i className="intense"/>Intense</span></div>
+      <div className="map-caption"><b>WEST → ENE</b><span>Cell motion · 21 km/h</span></div>
+      <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a>
+    </div>
+  </section>;
+}
+
 function StatusDot({ level }: { level: Alert }) {
   return <span className={`status-dot ${level}`} aria-label={`${level} alert`} />;
 }
@@ -27,40 +56,56 @@ function Delivery({ icon: Icon, label }: { icon: React.ElementType; label: strin
   return <div className="delivery"><Icon size={15} /><span>{label}</span><Check size={14} className="check" /></div>;
 }
 
-function HeroShader() {
+function WeatherField({ variant = "front" }: { variant?: "front" | "isobars" }) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   React.useEffect(() => {
     const canvas = canvasRef.current;
-    const gl = canvas?.getContext("webgl", { alpha: true, antialias: false });
-    if (!canvas || !gl) return;
-    const vertex = `attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
-    const fragment = `precision mediump float;uniform vec2 r;uniform vec2 m;uniform float t;
-      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-      void main(){vec2 uv=gl_FragCoord.xy/r;vec2 p=(gl_FragCoord.xy-.5*r)/min(r.x,r.y);vec2 mouse=(m-.5*r)/min(r.x,r.y);
-        float d=length(p-mouse);float pulse=.5+.5*sin(d*34.-t*2.2);float field=exp(-d*2.6)*(.32+.22*pulse);
-        float cloud=sin(p.x*5.2+t*.08)*sin(p.y*4.1-t*.06)*.07+.07;
-        float grain=hash(floor(gl_FragCoord.xy/3.));float mask=step(grain,field+cloud);
-        vec3 paper=vec3(.933,.941,.953);vec3 alert=vec3(.898,.396,.196);vec3 c=mix(paper,alert,mask*.62);
-        float edge=smoothstep(.92,.25,length(uv-.5));gl_FragColor=vec4(c,edge*.72);}`;
-    const compile = (type: number, source: string) => { const s=gl.createShader(type)!; gl.shaderSource(s,source); gl.compileShader(s); return s; };
-    const program=gl.createProgram()!; gl.attachShader(program,compile(gl.VERTEX_SHADER,vertex)); gl.attachShader(program,compile(gl.FRAGMENT_SHADER,fragment)); gl.linkProgram(program); gl.useProgram(program);
-    const buffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
-    const pos=gl.getAttribLocation(program,"p"); gl.enableVertexAttribArray(pos); gl.vertexAttribPointer(pos,2,gl.FLOAT,false,0,0);
-    const res=gl.getUniformLocation(program,"r"), mouse=gl.getUniformLocation(program,"m"), time=gl.getUniformLocation(program,"t");
-    let mx=.72,my=.48,frame=0; const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const resize=()=>{const d=Math.min(devicePixelRatio,2);canvas.width=canvas.clientWidth*d;canvas.height=canvas.clientHeight*d;gl.viewport(0,0,canvas.width,canvas.height);};
-    const move=(e:PointerEvent)=>{const b=canvas.getBoundingClientRect();mx=(e.clientX-b.left)/b.width;my=1-(e.clientY-b.top)/b.height;};
-    const draw=(now=0)=>{resize();gl.uniform2f(res,canvas.width,canvas.height);gl.uniform2f(mouse,mx*canvas.width,my*canvas.height);gl.uniform1f(time,now/1000);gl.drawArrays(gl.TRIANGLES,0,6);if(!reduced)frame=requestAnimationFrame(draw);};
-    canvas.addEventListener("pointermove",move); draw(); return()=>{cancelAnimationFrame(frame);canvas.removeEventListener("pointermove",move);};
-  },[]);
-  return <canvas className="hero-shader" ref={canvasRef} aria-hidden="true" />;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const draw = () => {
+      const scale = Math.min(devicePixelRatio, 2);
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      context.setTransform(scale, 0, 0, scale, 0, 0);
+      context.clearRect(0, 0, width, height);
+      const originX = variant === "front" ? width * .78 : width * .84;
+      const originY = variant === "front" ? height * .48 : height * .3;
+      context.strokeStyle = "rgba(217, 85, 40, .14)";
+      context.lineWidth = 1;
+      for (let ring = 0; ring < 7; ring++) {
+        context.beginPath();
+        for (let step = 0; step <= 96; step++) {
+          const angle = step / 96 * Math.PI * 2;
+          const radius = 38 + ring * 30 + Math.sin(angle * 3 + ring * .9) * (8 + ring * 1.5);
+          const x = originX + Math.cos(angle) * radius * 1.8;
+          const y = originY + Math.sin(angle) * radius * .72;
+          step ? context.lineTo(x, y) : context.moveTo(x, y);
+        }
+        context.stroke();
+      }
+      context.fillStyle = "rgba(217, 85, 40, .15)";
+      for (let i = 0; i < 120; i++) {
+        const x = (i * 83 % 127) / 127 * width;
+        const y = (i * 47 % 113) / 113 * height;
+        const falloff = Math.max(0, 1 - Math.hypot((x-originX)/(width*.65), (y-originY)/(height*.8)));
+        if (((i * 31) % 100) / 100 < falloff * .34) context.fillRect(x, y, 1, 1);
+      }
+    };
+    const observer = new ResizeObserver(draw);
+    observer.observe(canvas);
+    draw();
+    return () => observer.disconnect();
+  },[variant]);
+  return <canvas className={`weather-field weather-field-${variant}`} ref={canvasRef} aria-hidden="true" />;
 }
 
 function RefreshLoader({ visible }: { visible: boolean }) {
   return <div className={`refresh-loader ${visible ? "visible" : ""}`} aria-live="polite" aria-hidden={!visible}><div className="loader-radar"><Radar size={21}/><i/><i/><i/></div><div><b>Agents are reading the sky</b><span>Comparing radar · models · station data</span></div></div>;
 }
 
-function App() {
+export default function App() {
   const [tab, setTab] = React.useState<"overview" | "runs">("overview");
   const [refreshed, setRefreshed] = React.useState(false);
   const [reasoning, setReasoning] = React.useState(false);
@@ -86,7 +131,7 @@ function App() {
 
       <main id="top">
         <section className="intro" data-reveal>
-          <HeroShader />
+          <WeatherField />
           <div className="intro-copy"><div className="eyebrow"><MapPin size={14} /> Mumbai Metropolitan Region</div><h1>Rain is building<br /><span>towards the evening.</span></h1><div className="signal-line"><span/><b>Live signal</b><i>18 sources · 2 agents · one current view</i></div></div>
           <div className="updated"><Clock3 size={14} /> Last analysed 14:32 IST</div>
         </section>
@@ -106,7 +151,10 @@ function App() {
           </aside>
         </section>
 
+        <MmrMap />
+
         <section className="outlook-section" data-reveal>
+          <WeatherField variant="isobars" />
           <div className="section-head"><div><div className="eyebrow"><Satellite size={14} /> Outlook agent</div><h2>The signal eases after Sunday.</h2></div><span className="badge yellow"><StatusDot level="yellow" /> 5-day peak · Yellow</span></div>
           <div className="forecast-grid">
             {forecast.map((item, i) => <article className={i === 0 ? "forecast today" : "forecast"} style={{"--delay":`${i*45}ms`} as React.CSSProperties} key={item.day}><div className="forecast-head"><div><b>{item.day}</b><small>{item.date}</small></div><StatusDot level={item.level} /></div><div className="rain-icon"><CloudRain size={i < 2 ? 30 : 25} strokeWidth={1.5} /></div><strong>{item.rain}</strong><div className="chance"><span style={{ "--chance": `${item.chance}%` } as React.CSSProperties} /></div><div className="forecast-foot"><span>{item.chance}% chance</span><b>{item.mm}</b></div></article>)}
@@ -123,5 +171,3 @@ function App() {
     </div>
   );
 }
-
-createRoot(document.getElementById("root")!).render(<App />);
