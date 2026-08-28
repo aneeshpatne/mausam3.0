@@ -3,7 +3,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    "types": ["astro/client", "bun"]
+    "types": ["astro/client", "bun", "@mcp-b/webmcp-types"]
   },
   "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist"]

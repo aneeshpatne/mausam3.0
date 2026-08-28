@@ -9,6 +9,7 @@
     "preview": "astro preview",
     "deploy": "bun run build && bunx wrangler deploy",
     "start": "astro dev",
+    "test": "bun test",
     "check": "astro check"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@mcp-b/webmcp-types": "^5.0.1",
     "@types/bun": "latest",
     "typescript": "^6.0.0"
   }
