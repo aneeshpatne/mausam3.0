@@ -6,6 +6,7 @@
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "bun index.ts",
+    "server": "bun --watch src/server.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
