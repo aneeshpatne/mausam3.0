@@ -3,18 +3,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --hot server.ts",
-    "build": "bun build ./index.html --outdir=dist --target=browser",
-    "start": "bun server.ts"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "astro dev",
+    "check": "astro check"
   },
   "dependencies": {
+    "@astrojs/react": "^6.0.4",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "astro": "^7.2.9",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@astrojs/check": "^0.9.10",
+    "@types/bun": "latest",
+    "typescript": "^6.0.0"
   }
 }
