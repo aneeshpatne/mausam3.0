@@ -1,0 +1,89 @@
+{
+  "primary": {
+    "alert": "yellow",
+    "headline": "Borivali yellow: Light showers possible",
+    "summary": "Dry conditions are most likely through the next hour. Brief light showers may develop later, but no heavy-rain signal is evident for Borivali.",
+    "analysedAt": "2026-08-28T07:16:18.104Z",
+    "rainChance": 50,
+    "expectedPeak": "No clear peak; brief light showers possible within 1–6 hours",
+    "confidence": "Medium",
+    "agentNote": "Radar and the Borivali gauge favor a dry first hour; model guidance supports intermittent light-shower risk later. A mostly dry outcome remains plausible.",
+    "temperatureC": null,
+    "feelsLikeC": null,
+    "wind": null,
+    "rainRate": "0 mm in past 15 minutes",
+    "station": "Borivali rain gauge",
+    "stationUpdatedAt": null,
+    "sourceSummary": "Latest supplied radar and SRI captures from 12:44–12:45 PM IST, Borivali rain-gauge observations, and GFS/ECMWF next-six-hour guidance. Full Borivali local-station data are unavailable."
+  },
+  "outlook": {
+    "alert": "yellow",
+    "headline": "Yellow alert: Light, intermittent shower risk around Mumbai through Sep 2",
+    "modelRead": "ECMWF keeps a light, intermittent coastal-to-Mumbai shower signal at its nightly checkpoints. The supplied GFS frames are less frequent and, where they overlap, are generally drier or differ on timing; neither model shows a clear local heavy-rain core.",
+    "reasoning": "The five forecast windows retain a yellow alert because light showers are possible in or near Mumbai, especially along the west coast, while confidence is reduced by incomplete timing overlap between the supplied model frames. ECMWF provides checkpoints on each night from Aug 28 to Sep 1. The supplied GFS charts begin at 05:30 IST on Aug 30 and then arrive every 48 hours, so it cannot directly verify every daily window. The pressure charts show broadly weak local gradients around 1008-14 hPa, with more organized low-pressure and heavier precipitation signals displaced inland or north/east of Mumbai. Wind vectors are not shown.",
+    "analysedAt": "2026-08-28T07:23:41.488Z",
+    "days": [
+      {
+        "date": "Fri Aug 28 2026, 07:00 AM-Sat Aug 29 2026, 06:59 AM IST",
+        "label": "D1",
+        "rain": "Isolated light showers possible near Mumbai and the west coast",
+        "chance": 0,
+        "rainfall": "Qualitative only: isolated light rain signal",
+        "alert": "yellow"
+      },
+      {
+        "date": "Sat Aug 29 2026, 07:00 AM-Sun Aug 30 2026, 06:59 AM IST",
+        "label": "D2",
+        "rain": "Light showers possible; models differ, with GFS drier toward early Sunday",
+        "chance": 0,
+        "rainfall": "Qualitative only: light, intermittent rain signal",
+        "alert": "yellow"
+      },
+      {
+        "date": "Sun Aug 30 2026, 07:00 AM-Mon Aug 31 2026, 06:59 AM IST",
+        "label": "D3",
+        "rain": "Intermittent light or isolated coastal showers possible",
+        "chance": 0,
+        "rainfall": "Qualitative only: light/isolated rain signal",
+        "alert": "yellow"
+      },
+      {
+        "date": "Mon Aug 31 2026, 07:00 AM-Tue Sep 01 2026, 06:59 AM IST",
+        "label": "D4",
+        "rain": "Light showers may reach Mumbai and nearby coastal areas",
+        "chance": 0,
+        "rainfall": "Qualitative only: light rain signal; timing uncertain",
+        "alert": "yellow"
+      },
+      {
+        "date": "Tue Sep 01 2026, 07:00 AM-Wed Sep 02 2026, 06:59 AM IST",
+        "label": "D5",
+        "rain": "Isolated light showers remain possible near the coast and Mumbai",
+        "chance": 0,
+        "rainfall": "Qualitative only: isolated light rain signal",
+        "alert": "yellow"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "agent": "Outlook",
+      "alert": "yellow",
+      "analysedAt": "2026-08-28T07:23:41.488Z",
+      "note": "Yellow alert: Light, intermittent shower risk around Mumbai through Sep 2"
+    },
+    {
+      "agent": "Outlook",
+      "alert": "yellow",
+      "analysedAt": "2026-08-28T07:22:44.646Z",
+      "note": "Yellow alert: Light, intermittent shower risk around Mumbai through Sep 2"
+    },
+    {
+      "agent": "Nowcast",
+      "alert": "yellow",
+      "analysedAt": "2026-08-28T07:16:18.104Z",
+      "note": "Radar and the Borivali gauge favor a dry first hour; model guidance supports intermittent light-shower risk later. A mostly dry outcome remains plausible."
+    }
+  ],
+  "generatedAt": "2026-08-28T07:25:29.354Z"
+}
