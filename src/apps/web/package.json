@@ -4,8 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "sync-data": "bun scripts/sync-site-data.ts",
+    "build": "bun run sync-data && astro build",
     "preview": "astro preview",
+    "deploy": "bun run build && bunx wrangler deploy",
     "start": "astro dev",
     "check": "astro check"
   },
