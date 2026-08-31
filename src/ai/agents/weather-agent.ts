@@ -20,9 +20,16 @@ export interface WeatherAgentImageInput {
 
 export type WeatherAgentMode = "default" | "morning";
 const alertSchema = z.enum(["green", "yellow", "orange", "red"]);
-const weatherDecisionSchema = z.object({
-  borivali_alert: alertSchema.describe("Borivali current and near-term severity"),
-  mumbai_alert: alertSchema.describe("Mumbai/MMR current and near-term severity"),
+export const weatherDecisionSchema = z.object({
+  // These must be distinct Zod instances. OpenAI's Zod converter turns reused
+  // instances into $refs, then puts title/description beside the $ref, which
+  // Structured Outputs rejects.
+  borivali_alert: z.enum(["green", "yellow", "orange", "red"]).describe(
+    "Borivali current and near-term severity",
+  ),
+  mumbai_alert: z.enum(["green", "yellow", "orange", "red"]).describe(
+    "Mumbai/MMR current and near-term severity",
+  ),
   mumbai_radar_summary: z.string().trim().min(1).describe(
     "Token-minimal Mumbai/MMR-wide radar memory for persistence",
   ),
